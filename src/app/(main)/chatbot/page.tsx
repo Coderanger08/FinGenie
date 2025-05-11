@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useTransition, useMemo } from "react";
@@ -22,6 +21,13 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 const initialWelcomeMessageText = "Hello! I'm FinGenie, your AI Financial Advisor. I can help you understand your spending, manage your budget, and make smarter financial decisions. Feel free to ask me questions like 'How can I save more this month?', 'Where did most of my money go?', or ask me to 'show my spending breakdown chart' or 'graph my income vs expenses'. How can I assist you today?";
 
 const PIE_CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+
+const recommendedPrompts = [
+  "How can I save more this month?",
+  "Show my spending breakdown chart",
+  "Graph my income vs expenses",
+  "Help me create a budget",
+];
 
 
 export default function ChatbotPage() {
@@ -95,42 +101,49 @@ export default function ChatbotPage() {
   };
 
 
-  const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
+  const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>, directPromptText?: string) => {
     e?.preventDefault();
-    if (!inputValue.trim() || clientTimestamp === null) return;
+    const textToSend = directPromptText || inputValue;
+
+    if (!textToSend.trim() || clientTimestamp === null) return;
 
     const userMessage: ChatMessage = {
-      id: clientTimestamp.toString() + Math.random(), // Ensure unique ID with client-side randomness
-      text: inputValue,
+      id: clientTimestamp.toString() + Math.random(),
+      text: textToSend,
       sender: "user",
       timestamp: clientTimestamp,
     };
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
+    setInputValue(""); // Clear input regardless of source
 
     startBotTypingTransition(async () => {
       try {
         const financialContext = generateFinancialContext();
-        const botResponse = await getChatbotResponseAction({ question: userMessage.text, financialContext });
+        const botResponse = await getChatbotResponseAction({ question: textToSend, financialContext });
         const aiMessage: ChatMessage = {
-          id: (clientTimestamp + 1).toString() + Math.random(),  // Ensure unique ID
+          id: (clientTimestamp + 1).toString() + Math.random(),
           text: botResponse.answer,
           sender: "ai",
-          timestamp: clientTimestamp +1, // ensure timestamp is different from user's
-          chart: botResponse.chart, // Include chart data
+          timestamp: clientTimestamp +1, 
+          chart: botResponse.chart,
         };
         setMessages((prev) => [...prev, aiMessage]);
       } catch (error) {
         console.error("Failed to get bot response", error);
         const errorMessage: ChatMessage = {
-          id: (clientTimestamp + 1).toString() + Math.random(), // Ensure unique ID
+          id: (clientTimestamp + 1).toString() + Math.random(),
           text: "Sorry, I encountered an error processing your request. Please try again.",
           sender: "ai",
-          timestamp: clientTimestamp + 1, // ensure timestamp is different from user's
+          timestamp: clientTimestamp + 1,
         };
         setMessages((prev) => [...prev, errorMessage]);
       }
     });
+  };
+
+  const handleRecommendedPromptClick = (prompt: string) => {
+    if (isBotTyping || clientTimestamp === null) return;
+    handleSendMessage(undefined, prompt);
   };
 
   useEffect(() => {
@@ -263,7 +276,7 @@ export default function ChatbotPage() {
                     {message.sender === "ai" && message.chart && (
                        <ChatbotChart chartConfig={message.chart} />
                     )}
-                    {clientTimestamp !== null && ( // Only render timestamp if clientTimestamp is available
+                    {clientTimestamp !== null && ( 
                        <p className={cn("mt-1 text-xs", message.sender === "user" ? "text-primary-foreground/80" : "text-muted-foreground/80" )}>
                            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                        </p>
@@ -294,6 +307,23 @@ export default function ChatbotPage() {
             </div>
           </ScrollArea>
           <div className="border-t p-4 bg-background">
+            <div className="mb-3">
+                <p className="text-xs text-muted-foreground mb-1">Try asking:</p>
+                <div className="flex flex-wrap gap-2">
+                {recommendedPrompts.map((prompt, index) => (
+                    <Button
+                    key={index}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRecommendedPromptClick(prompt)}
+                    disabled={isBotTyping || clientTimestamp === null}
+                    className="text-xs h-auto py-1 px-2" 
+                    >
+                    {prompt}
+                    </Button>
+                ))}
+                </div>
+            </div>
             <form onSubmit={handleSendMessage} className="flex items-center gap-3">
               <Input
                 value={inputValue}
@@ -313,4 +343,3 @@ export default function ChatbotPage() {
     </div>
   );
 }
-
