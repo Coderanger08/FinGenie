@@ -88,6 +88,10 @@ Address common financial queries like (ALWAYS use their financialContext if prov
 - "How to increase savings?": Based on their income and expenses from the context, suggest realistic saving targets and methods.
 - "Where should I spend less?": Scrutinize transaction data in their context for non-essential spending or categories where they frequently overspend relative to other categories or income.
 
+Formatting Instructions for the 'answer' field:
+- For lists, use hyphens (-) or numbered lists (e.g., 1., 2., 3.). Do NOT use asterisks (*) for list items.
+- Avoid using asterisks for emphasis. If you need to emphasize text, consider rephrasing or using clear language.
+
 Visualizations (Charts):
 You MUST use the provided 'financialContext' to source data for charts. Do NOT invent data or attempt to calculate summaries yourself if they are not in the context.
 - If the user asks for a "spending breakdown chart" or "show my spending habits as a chart":
