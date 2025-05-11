@@ -19,7 +19,7 @@ import { ResponsiveContainer, PieChart as RechartsPieChart, Pie, BarChart as Rec
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 
 
-const initialWelcomeMessageText = "Hello! I'm FinGenie, your AI Financial Advisor. How can I help you today? Feel free to ask me about managing your finances, saving money, or understanding your spending. You can also ask me to 'show my spending breakdown chart' or 'graph my income vs expenses'.";
+const initialWelcomeMessageText = "Hello! I'm FinGenie, your AI Financial Advisor. I can help you understand your spending, manage your budget, and make smarter financial decisions. Feel free to ask me questions like 'How can I save more this month?', 'Where did most of my money go?', or ask me to 'show my spending breakdown chart' or 'graph my income vs expenses'. How can I assist you today?";
 
 const PIE_CHART_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
@@ -58,8 +58,8 @@ export default function ChatbotPage() {
     let context = "User's Financial Context:\n";
 
     if (transactions.length > 0) {
-      context += "\nRecent Transactions (last 5):\n";
-      const recentTransactions = transactions.slice(0, 5);
+      context += "\nRecent Transactions (last 10, if available):\n";
+      const recentTransactions = transactions.slice(0, 10);
       recentTransactions.forEach(t => {
         context += `- ${t.type === 'Income' ? 'Received' : 'Spent'} ${formatCurrency(t.amount, selectedCurrency)} for "${t.description}" (Category: ${t.category}) on ${format(parseISO(t.date), "yyyy-MM-dd")}\n`;
       });
@@ -83,11 +83,13 @@ export default function ChatbotPage() {
       sortedSpending.forEach(([category, amount]) => {
         context += `- ${category}: ${formatCurrency(amount, selectedCurrency)}\n`;
       });
+    } else {
+       context += "\nNo spending category data available.\n";
     }
     
     const totalIncome = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
-    context += `\nOverall Summary (all time):\n- Total Income: ${formatCurrency(totalIncome, selectedCurrency)}\n- Total Expenses: ${formatCurrency(totalExpenses, selectedCurrency)}\n- Net: ${formatCurrency(totalIncome - totalExpenses, selectedCurrency)}\n`;
+    context += `\nOverall Summary (all time from available transactions):\n- Total Income: ${formatCurrency(totalIncome, selectedCurrency)}\n- Total Expenses: ${formatCurrency(totalExpenses, selectedCurrency)}\n- Net (Income - Expenses): ${formatCurrency(totalIncome - totalExpenses, selectedCurrency)}\n`;
 
     return context;
   };
@@ -122,7 +124,7 @@ export default function ChatbotPage() {
         console.error("Failed to get bot response", error);
         const errorMessage: ChatMessage = {
           id: (clientTimestamp + 1).toString() + Math.random(), // Ensure unique ID
-          text: "Sorry, I encountered an error. Please try again.",
+          text: "Sorry, I encountered an error processing your request. Please try again.",
           sender: "ai",
           timestamp: clientTimestamp + 1, // ensure timestamp is different from user's
         };
