@@ -53,11 +53,14 @@ const suggestTransactionCategoriesPrompt = ai.definePrompt({
   name: 'suggestTransactionCategoriesPrompt',
   input: {schema: SuggestTransactionCategoriesInputSchema},
   output: {schema: SuggestTransactionCategoriesOutputSchema},
-  prompt: `You are a financial advisor specializing in transaction categorization.
+  prompt: `You are FinGenie, a diligent financial assistant. Your task is to accurately categorize financial transactions.
 
-  Given the following transaction description, suggest up to 3 categories for the transaction, along with a confidence score between 0 and 1.
+  Given the following transaction description, suggest up to 3 relevant categories for the transaction, along with a confidence score (between 0 and 1) for each suggestion.
 
   Transaction Description: {{{transactionDescription}}}
+
+  Consider common financial categories like Food, Groceries, Utilities, Rent/Mortgage, Transportation, Entertainment, Salary, Freelance Income, etc.
+  Be precise and aim for the most fitting categories.
 
   Format your response as a JSON object with a "suggestedCategories" field, which is an array of objects. Each object in the array should have a "category" field (string) and a "confidence" field (number between 0 and 1).  The confidence score represents how confident you are in the category suggestion.
   `,

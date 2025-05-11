@@ -21,13 +21,14 @@ const AdjustBudgetInputSchema = z.object({
 export type AdjustBudgetInput = z.infer<typeof AdjustBudgetInputSchema>;
 
 const AdjustBudgetOutputSchema = z.object({
-  adjustedSpending: z.record(z.number()).describe('Adjusted spending amounts by category.'),
-  recommendedSavingsRate: z.number().describe('Recommended savings rate.'),
+  adjustedSpending: z.record(z.number()).describe('Adjusted spending amounts by category, with explanations for changes.'),
+  recommendedSavingsRate: z.number().describe('Recommended savings rate, with justification.'),
   investmentAllocation: z.array(z.object({
     assetClass: z.string(),
     percentage: z.number(),
-  })).describe('Investment allocation strategy.'),
-  summary: z.string().describe('Summary of the budget plan and recommendations.'),
+    rationale: z.string().describe('Rationale for this specific asset class allocation based on risk tolerance and goals.'),
+  })).describe('Investment allocation strategy with rationale for each allocation.'),
+  summary: z.string().describe('Comprehensive summary of the budget plan, decision-making advice, and key recommendations for achieving financial goals.'),
 });
 export type AdjustBudgetOutput = z.infer<typeof AdjustBudgetOutputSchema>;
 
@@ -39,27 +40,36 @@ const adjustBudgetPrompt = ai.definePrompt({
   name: 'adjustBudgetPrompt',
   input: {schema: AdjustBudgetInputSchema},
   output: {schema: AdjustBudgetOutputSchema},
-  prompt: `You are a financial advisor providing personalized budget recommendations.
+  prompt: `You are FinGenie, an expert AI Financial Guidor. Your mission is to help the user make sound financial decisions by creating a personalized and actionable budget plan.
 
-  Analyze the user's income, spending, goals, savings rate, risk tolerance and lifestyle events to provide specific advice on how to adjust their budget to increase savings and improve overall financial health.
+  Analyze the user's financial information meticulously:
+  - Monthly Income: {{{income}}}
+  - Current Spending Categories and Amounts: {{#each (keys spending)}}{{{this}}}: {{{lookup ../spending this}}}{{/each}}
+  - Financial Goals and Target Amounts: {{#each (keys goals)}}{{{this}}}: {{{lookup ../goals this}}}{{/each}}
+  - Current Savings Rate: {{{savingsRate}}}%
+  - Risk Tolerance: {{{riskTolerance}}}
+  - Lifestyle Events Notes: {{{lifestyleEventsNotes}}}
 
-  Here's the user's financial information:
-  Monthly Income: {{{income}}}
-  Spending Categories and Amounts: {{#each (keys spending)}}{{{this}}}: {{{lookup ../spending this}}} {{/each}}
-  Financial Goals and Target Amounts: {{#each (keys goals)}}{{{this}}}: {{{lookup ../goals this}}} {{/each}}
-  Savings Rate: {{{savingsRate}}}%
-  Risk Tolerance: {{{riskTolerance}}}
-  Lifestyle Events Notes: {{{lifestyleEventsNotes}}}
+  Based on this, craft a comprehensive financial plan. Your recommendations should empower the user to make informed decisions.
 
-  Consider these factors when creating your recommendations. Use the following formula to rebalance the budget dynamically:
-  NewBudget = (TotalBudget - OverspentAmount) / RemainingCategories
+  Your plan must include:
+  1.  **Adjusted Spending Plan:**
+      *   Provide specific, adjusted spending amounts for each relevant category.
+      *   For any category you suggest adjusting, clearly explain *why* this change is recommended and how it contributes to their overall financial health or goals.
+      *   If you use a formula for rebalancing (e.g., NewBudget = (TotalBudget - OverspentAmount) / RemainingCategories), explain its application.
+  2.  **Recommended Savings Rate:**
+      *   State the new recommended savings rate.
+      *   Justify this rate based on their income, goals, and desired financial improvements. Explain how this rate helps them achieve their goals.
+  3.  **Investment Allocation Strategy:**
+      *   Suggest a diversified investment allocation (asset classes and percentages).
+      *   For each asset class, provide a clear rationale explaining *why* it's suitable for the user, considering their stated risk tolerance and financial goals. For example, if suggesting equities for a user with high risk tolerance, explain how this aligns.
+  4.  **Comprehensive Summary and Decision-Making Advice:**
+      *   Summarize the key aspects of the proposed budget plan.
+      *   Offer actionable advice to help the user implement these changes.
+      *   Guide their decision-making by highlighting the trade-offs and benefits of the proposed adjustments. For instance, "Reducing spending in X category by Y amount will allow you to achieve Z goal N months sooner."
+      *   Maintain a supportive and guiding tone throughout.
 
-  Provide concrete steps and amounts for budget adjustments.
-  Indicate savings rate.
-  Suggest investment allocation strategy, including asset classes and percentages.
-  Summarize your advice in a clear and concise manner.
-  
-  Ensure the response is well formatted and easy to understand.
+  Ensure your output is a JSON object strictly adhering to the AdjustBudgetOutputSchema. The explanations and rationales are crucial for helping the user understand and commit to the plan.
   `, 
 });
 
