@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FileText, CircleDollarSign, Tag, ListFilter, PlusCircle, Loader2 } from "lucide-react";
+import { CalendarIcon, FileText, CircleDollarSign, Tag, ListFilter, PlusCircle, Loader2, CreditCard } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -234,3 +234,4 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
