@@ -23,8 +23,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  // Explicitly type params and searchParams, even if not used by the layout itself
+  params,
+  searchParams,
 }: Readonly<{
   children: React.ReactNode;
+  params: { [key: string]: string | string[] | undefined };
+  searchParams: { [key: string]: string | string[] | undefined };
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
