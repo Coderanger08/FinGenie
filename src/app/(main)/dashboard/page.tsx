@@ -4,11 +4,13 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { BarChart, PieChart, Pie, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend, ResponsiveContainer, Cell } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, AlertTriangle, CreditCard, DollarSign, TrendingUp } from "lucide-react";
+import { BarChart, PieChart, Pie, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
+import { ArrowUpRight, ArrowDownRight, AlertTriangle, DollarSign, TrendingUp } from "lucide-react";
 import type { Transaction, Budget } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
+import { useCurrency } from "@/contexts/currency-context";
+import { formatCurrency } from "@/lib/currency-utils";
 
 const mockTransactions: Transaction[] = [
   { id: "1", description: "Salary Deposit", amount: 5000, date: "2024-07-01", type: "Income", category: "Salary" },
@@ -24,14 +26,15 @@ const mockBudgets: Budget[] = [
   { id: "3", categoryName: "Utilities", spendingLimit: 150, currentSpending: 60 },
 ];
 
-const spendingData = [
+// Raw data for charts (values are numbers)
+const spendingDataRaw = [
   { name: 'Food', value: 150, fill: "hsl(var(--chart-1))" },
   { name: 'Housing', value: 1200, fill: "hsl(var(--chart-2))" },
   { name: 'Utilities', value: 60, fill: "hsl(var(--chart-3))" },
   { name: 'Other', value: 200, fill: "hsl(var(--chart-4))" },
 ];
 
-const incomeData = [
+const incomeDataRaw = [
   { name: 'Salary', value: 5000, fill: "hsl(var(--chart-1))" },
   { name: 'Freelance', value: 750, fill: "hsl(var(--chart-2))" },
 ];
@@ -53,10 +56,11 @@ const chartConfigIncome = {
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
+  const { selectedCurrency } = useCurrency();
+
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    // Basic skeleton or null render to avoid hydration mismatch for charts
     return null; 
   }
 
@@ -67,7 +71,19 @@ export default function DashboardPage() {
   const currentSavings = 2500; // Mocked
   const savingsProgress = (currentSavings / savingsGoalAmount) * 100;
 
-  const projectedBalance = totalIncome - totalExpenses + (totalIncome * 0.1); // Simplified projection
+  const projectedBalance = totalIncome - totalExpenses + (totalIncome * 0.1);
+
+  const chartTooltipFormatter = (value: unknown) => {
+    if (typeof value === 'number') {
+      return formatCurrency(value, selectedCurrency);
+    }
+    return String(value);
+  };
+  
+  const pieChartTooltipFormatter = (value: number, name: string) => {
+    return [formatCurrency(value, selectedCurrency), name];
+  };
+
 
   return (
     <div className="container mx-auto py-8">
@@ -80,7 +96,7 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${currentBalance.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(currentBalance, selectedCurrency)}</div>
             <p className="text-xs text-muted-foreground">
               Based on recorded transactions
             </p>
@@ -92,7 +108,7 @@ export default function DashboardPage() {
             <ArrowUpRight className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalIncome.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalIncome, selectedCurrency)}</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -102,7 +118,7 @@ export default function DashboardPage() {
             <ArrowDownRight className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalExpenses.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalExpenses, selectedCurrency)}</div>
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -112,7 +128,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${projectedBalance.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(projectedBalance, selectedCurrency)}</div>
             <p className="text-xs text-muted-foreground">Next month estimate</p>
           </CardContent>
         </Card>
@@ -126,9 +142,16 @@ export default function DashboardPage() {
           <CardContent>
             <ChartContainer config={chartConfigSpending} className="mx-auto aspect-square max-h-[300px]">
               <PieChart>
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Pie data={spendingData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                  {spendingData.map((entry, index) => (
+                <ChartTooltip 
+                  content={
+                    <ChartTooltipContent 
+                      hideLabel 
+                      formatter={(value, name) => pieChartTooltipFormatter(value as number, name as string)}
+                    />
+                  } 
+                />
+                <Pie data={spendingDataRaw} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                  {spendingDataRaw.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Pie>
@@ -143,13 +166,21 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <ChartContainer config={chartConfigIncome} className="w-full h-[300px]">
-              <BarChart accessibilityLayer data={incomeData} layout="vertical" margin={{ left: 20 }}>
+              <BarChart accessibilityLayer data={incomeDataRaw} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid horizontal={false} />
-                <XAxis type="number" hide />
+                <XAxis type="number" hide tickFormatter={(value) => chartTooltipFormatter(value)} />
                 <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                <ChartTooltip 
+                  cursor={false} 
+                  content={
+                    <ChartTooltipContent 
+                      hideLabel 
+                      formatter={(value) => chartTooltipFormatter(value)} 
+                    />
+                  }
+                />
                 <Bar dataKey="value" radius={5}>
-                    {incomeData.map((entry, index) => (
+                    {incomeDataRaw.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
@@ -168,7 +199,7 @@ export default function DashboardPage() {
         <CardContent>
           <div className="mb-2 flex justify-between">
             <span>Save for Vacation</span>
-            <span className="text-muted-foreground">${currentSavings.toFixed(2)} / ${savingsGoalAmount.toFixed(2)}</span>
+            <span className="text-muted-foreground">{formatCurrency(currentSavings, selectedCurrency)} / {formatCurrency(savingsGoalAmount, selectedCurrency)}</span>
           </div>
           <Progress value={savingsProgress} aria-label={`${savingsProgress}% towards vacation goal`} />
         </CardContent>
@@ -194,7 +225,7 @@ export default function DashboardPage() {
                     <TableCell className="font-medium">{transaction.description}</TableCell>
                     <TableCell><Badge variant="outline">{transaction.category}</Badge></TableCell>
                     <TableCell className={`text-right ${transaction.type === 'Income' ? 'text-green-500' : 'text-red-500'}`}>
-                      {transaction.type === 'Income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                      {transaction.type === 'Income' ? '+' : '-'}{formatCurrency(transaction.amount, selectedCurrency)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -218,7 +249,7 @@ export default function DashboardPage() {
                   }
                 </AlertTitle>
                 <AlertDescription>
-                  You've spent ${budget.currentSpending.toFixed(2)} of your ${budget.spendingLimit.toFixed(2)} budget for {budget.categoryName}.
+                  You've spent {formatCurrency(budget.currentSpending, selectedCurrency)} of your {formatCurrency(budget.spendingLimit, selectedCurrency)} budget for {budget.categoryName}.
                 </AlertDescription>
               </Alert>
             ))}

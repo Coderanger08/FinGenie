@@ -1,39 +1,19 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Settings as SettingsIcon, DollarSign } from "lucide-react";
-
-const currencies = [
-  { value: "USD", label: "USD - United States Dollar" },
-  { value: "EUR", label: "EUR - Euro" },
-  { value: "GBP", label: "GBP - British Pound Sterling" },
-  { value: "JPY", label: "JPY - Japanese Yen" },
-  { value: "CAD", label: "CAD - Canadian Dollar" },
-  { value: "AUD", label: "AUD - Australian Dollar" },
-  { value: "INR", label: "INR - Indian Rupee" },
-];
-
-const LOCAL_STORAGE_CURRENCY_KEY = "financeAppPreferredCurrency";
+import { useCurrency } from "@/contexts/currency-context";
+import { CURRENCIES_LIST } from "@/lib/currency-utils";
 
 export default function SettingsPage() {
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("USD");
+  const { selectedCurrency, setSelectedCurrency } = useCurrency();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const storedCurrency = localStorage.getItem(LOCAL_STORAGE_CURRENCY_KEY);
-    if (storedCurrency && currencies.some(c => c.value === storedCurrency)) {
-      setSelectedCurrency(storedCurrency);
-    }
-  }, []);
 
   const handleCurrencyChange = (value: string) => {
     setSelectedCurrency(value);
-    localStorage.setItem(LOCAL_STORAGE_CURRENCY_KEY, value);
     toast({
       title: "Preference Updated",
       description: `Preferred currency set to ${value}.`,
@@ -61,7 +41,7 @@ export default function SettingsPage() {
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent>
-                {currencies.map((currency) => (
+                {CURRENCIES_LIST.map((currency) => (
                   <SelectItem key={currency.value} value={currency.value}>
                     {currency.label}
                   </SelectItem>

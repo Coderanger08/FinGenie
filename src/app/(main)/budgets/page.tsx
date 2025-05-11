@@ -12,8 +12,10 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PiggyBankIcon, PlusCircle, AlertTriangle, Tag, CircleDollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Budget, Transaction } from "@/types"; // Assuming transactions are available for spending calculation
+import type { Budget, Transaction } from "@/types"; 
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/contexts/currency-context";
+import { formatCurrency } from "@/lib/currency-utils";
 
 // Mocked transactions for budget calculation for now
 const mockTransactions: Transaction[] = [
@@ -33,6 +35,7 @@ type BudgetFormData = z.infer<typeof budgetSchema>;
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const { toast } = useToast();
+  const { selectedCurrency } = useCurrency();
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -43,8 +46,6 @@ export default function BudgetsPage() {
   });
 
   const onSubmit = (data: BudgetFormData) => {
-    // In a real app, currentSpending would be calculated based on actual transactions
-    // For this mock, we'll find matching transactions
     const currentSpending = mockTransactions
         .filter(t => t.category.toLowerCase() === data.categoryName.toLowerCase() && t.type === "Expense")
         .reduce((sum, t) => sum + t.amount, 0);
@@ -57,7 +58,7 @@ export default function BudgetsPage() {
     setBudgets((prev) => [newBudget, ...prev]);
     toast({
       title: "Budget Created",
-      description: `Budget for ${data.categoryName} with a limit of $${data.spendingLimit} created.`,
+      description: `Budget for ${data.categoryName} with a limit of ${formatCurrency(data.spendingLimit, selectedCurrency)} created.`,
     });
     form.reset();
   };
@@ -120,11 +121,11 @@ export default function BudgetsPage() {
                           <CardTitle className="flex justify-between items-center">
                             <span>{budget.categoryName}</span>
                             <Badge variant={isOverLimit ? "destructive" : "secondary"}>
-                              Limit: ${budget.spendingLimit.toFixed(2)}
+                              Limit: {formatCurrency(budget.spendingLimit, selectedCurrency)}
                             </Badge>
                           </CardTitle>
                           <CardDescription>
-                            Spent: ${budget.currentSpending.toFixed(2)}
+                            Spent: {formatCurrency(budget.currentSpending, selectedCurrency)}
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -142,7 +143,7 @@ export default function BudgetsPage() {
                               </AlertTitle>
                               <AlertDescription>
                                 {isOverLimit 
-                                  ? `You've exceeded your budget for ${budget.categoryName} by $${(budget.currentSpending - budget.spendingLimit).toFixed(2)}.`
+                                  ? `You've exceeded your budget for ${budget.categoryName} by ${formatCurrency(budget.currentSpending - budget.spendingLimit, selectedCurrency)}.`
                                   : `You're close to your spending limit for ${budget.categoryName}.`}
                               </AlertDescription>
                             </Alert>

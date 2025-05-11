@@ -11,14 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend as RechartsLegend, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PlusCircle, Trash2, Activity, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlannerOutputData } from "@/types";
 import { getBudgetPlanAction } from "./actions";
 import type { AdjustBudgetInput } from "@/ai/flows/budget-adjustment-planner";
-
+import { useCurrency } from "@/contexts/currency-context";
+import { formatCurrency } from "@/lib/currency-utils";
 
 const spendingItemSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -42,8 +43,8 @@ const plannerSchema = z.object({
 type PlannerFormData = z.infer<typeof plannerSchema>;
 
 
-const chartConfig = {
-  amount: { label: "Amount", color: "hsl(var(--chart-1))" },
+const chartConfigBase = {
+  amount: { label: "Amount" }, // Base color will be applied per bar by fill property
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 
@@ -52,6 +53,8 @@ export default function BudgetPlannerPage() {
   const [isGenerating, startGenerationTransition] = useTransition();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const { selectedCurrency } = useCurrency();
+
   useEffect(() => setMounted(true), []);
 
 
@@ -109,11 +112,18 @@ export default function BudgetPlannerPage() {
     ? Object.entries(plannerOutput.adjustedSpending).map(([name, value], index) => ({ 
         name, 
         amount: value,
-        fill: `hsl(var(--chart-${(index % 5) + 1}))` // Cycle through chart colors
+        fill: `hsl(var(--chart-${(index % 5) + 1}))` 
       })) 
     : [];
+  
+  const chartTooltipFormatter = (value: unknown) => {
+    if (typeof value === 'number') {
+      return formatCurrency(value, selectedCurrency);
+    }
+    return String(value);
+  };
 
-  if (!mounted && plannerOutput) { // Prevent chart rendering server-side if data is present
+  if (!mounted && plannerOutput) { 
      return null;
   }
 
@@ -131,7 +141,7 @@ export default function BudgetPlannerPage() {
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div>
-                <Label htmlFor="monthlyIncome">Monthly Income ($)</Label>
+                <Label htmlFor="monthlyIncome">Monthly Income</Label>
                 <Input id="monthlyIncome" type="number" {...form.register("monthlyIncome")} />
                 {form.formState.errors.monthlyIncome && <p className="text-sm text-destructive mt-1">{form.formState.errors.monthlyIncome.message}</p>}
               </div>
@@ -145,7 +155,7 @@ export default function BudgetPlannerPage() {
                     <Button type="button" variant="outline" size="icon" onClick={() => removeSpending(index)}><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                {form.formState.errors.spending && <p className="text-sm text-destructive mt-1">{form.formState.errors.spending.message || form.formState.errors.spending.root?.message}</p>}
+                {(form.formState.errors.spending && (form.formState.errors.spending.message || form.formState.errors.spending.root?.message)) && <p className="text-sm text-destructive mt-1">{form.formState.errors.spending.message || form.formState.errors.spending.root?.message}</p>}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendSpending({ category: "", amount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Spending Category</Button>
               </div>
               
@@ -158,7 +168,7 @@ export default function BudgetPlannerPage() {
                     <Button type="button" variant="outline" size="icon" onClick={() => removeGoal(index)}><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                {form.formState.errors.goals && <p className="text-sm text-destructive mt-1">{form.formState.errors.goals.message || form.formState.errors.goals.root?.message}</p>}
+                {(form.formState.errors.goals && (form.formState.errors.goals.message || form.formState.errors.goals.root?.message)) && <p className="text-sm text-destructive mt-1">{form.formState.errors.goals.message || form.formState.errors.goals.root?.message}</p>}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendGoal({ goal: "", targetAmount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Financial Goal</Button>
               </div>
 
@@ -233,18 +243,25 @@ export default function BudgetPlannerPage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Adjusted Spending</h3>
                    {adjustedSpendingChartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="w-full h-[300px]">
+                    <ChartContainer config={chartConfigBase} className="w-full h-[300px]">
                         <BarChart data={adjustedSpendingChartData} layout="vertical" margin={{ left: 20, right: 20 }}>
                             <CartesianGrid horizontal={false} />
-                            <XAxis type="number" dataKey="amount" />
+                            <XAxis type="number" dataKey="amount" tickFormatter={(value) => chartTooltipFormatter(value)} />
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeWidth={0} width={100} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                            <ChartTooltip 
+                                cursor={false} 
+                                content={
+                                    <ChartTooltipContent 
+                                        formatter={(value) => chartTooltipFormatter(value)} 
+                                    />
+                                } 
+                            />
                             <Bar dataKey="amount" radius={5}>
                                 {adjustedSpendingChartData.map((entry) => (
                                     <Cell key={`cell-${entry.name}`} fill={entry.fill} />
                                 ))}
                             </Bar>
-                            <ChartLegend content={<ChartLegendContent />} />
+                            {/* <ChartLegend content={<ChartLegendContent />} /> // Legend can be verbose for many categories */}
                         </BarChart>
                     </ChartContainer>
                     ) : (

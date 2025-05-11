@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { Transaction } from "@/types";
 import { getAiCategorySuggestionAction } from "./actions";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/contexts/currency-context";
+import { formatCurrency } from "@/lib/currency-utils";
 
 const transactionSchema = z.object({
   description: z.string().min(3, "Description must be at least 3 characters"),
@@ -35,6 +37,7 @@ export default function TransactionsPage() {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isSuggesting, startSuggestionTransition] = useTransition();
   const { toast } = useToast();
+  const { selectedCurrency } = useCurrency();
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -63,7 +66,7 @@ export default function TransactionsPage() {
     } else {
       setAiSuggestions([]);
     }
-  }, [descriptionWatch]);
+  }, [descriptionWatch, startSuggestionTransition]);
 
   const onSubmit = (data: TransactionFormData) => {
     const newTransaction: Transaction = {
@@ -74,7 +77,7 @@ export default function TransactionsPage() {
     setTransactions((prev) => [newTransaction, ...prev]);
     toast({
       title: "Transaction Added",
-      description: `${data.description} for $${data.amount} was successfully added.`,
+      description: `${data.description} for ${formatCurrency(data.amount, selectedCurrency)} was successfully added.`,
       variant: "default",
     });
     form.reset();
@@ -220,7 +223,7 @@ export default function TransactionsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className={cn("text-right", transaction.type === 'Income' ? 'text-green-600' : 'text-red-600')}>
-                        {transaction.type === 'Income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                        {transaction.type === 'Income' ? '+' : '-'}{formatCurrency(transaction.amount, selectedCurrency)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -234,4 +237,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
