@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
@@ -12,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FileText, CircleDollarSign, Tag, ListFilter, PlusCircle, Loader2, CreditCard } from "lucide-react";
+import { CalendarIcon, FileText, CircleDollarSign, Tag, ListFilter, PlusCircle, Loader2, CreditCardIcon } from "lucide-react"; // Changed CreditCard to CreditCardIcon
 import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,7 @@ import { getAiCategorySuggestionAction } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
+import { useTransactions } from "@/contexts/transactions-context"; // Import useTransactions
 
 const transactionSchema = z.object({
   description: z.string().min(3, "Description must be at least 3 characters"),
@@ -33,7 +35,7 @@ const transactionSchema = z.object({
 type TransactionFormData = z.infer<typeof transactionSchema>;
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { transactions, addTransaction } = useTransactions(); // Use context
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isSuggesting, startSuggestionTransition] = useTransition();
   const { toast } = useToast();
@@ -69,12 +71,7 @@ export default function TransactionsPage() {
   }, [descriptionWatch, startSuggestionTransition]);
 
   const onSubmit = (data: TransactionFormData) => {
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      ...data,
-      date: format(data.date, "yyyy-MM-dd"),
-    };
-    setTransactions((prev) => [newTransaction, ...prev]);
+    addTransaction(data); // Use addTransaction from context
     toast({
       title: "Transaction Added",
       description: `${data.description} for ${formatCurrency(data.amount, selectedCurrency)} was successfully added.`,
@@ -195,7 +192,7 @@ export default function TransactionsPage() {
             <CardContent>
               {transactions.length === 0 ? (
                  <div className="text-center py-10">
-                    <CreditCard className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <CreditCardIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Changed CreditCard to CreditCardIcon */}
                     <p className="text-muted-foreground">No transactions yet.</p>
                     <p className="text-sm text-muted-foreground">Add a transaction to get started.</p>
                 </div>
@@ -218,7 +215,7 @@ export default function TransactionsPage() {
                       <TableCell><Badge variant="secondary">{transaction.category}</Badge></TableCell>
                       <TableCell>
                         <Badge variant={transaction.type === 'Income' ? 'default' : 'destructive'} 
-                               className={cn(transaction.type === 'Income' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600', 'text-white')}>
+                               className={cn(transaction.type === 'Income' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-500', 'text-white')}>
                           {transaction.type}
                         </Badge>
                       </TableCell>

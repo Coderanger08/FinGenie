@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { SidebarProvider } from '@/components/ui/sidebar'; 
 import { CurrencyProvider } from '@/contexts/currency-context';
+import { TransactionsProvider } from '@/contexts/transactions-context'; // Import TransactionsProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,8 +31,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SidebarProvider>
           <CurrencyProvider>
-            {children}
-            <Toaster />
+            <TransactionsProvider> {/* Wrap with TransactionsProvider */}
+              {children}
+              <Toaster />
+            </TransactionsProvider>
           </CurrencyProvider>
         </SidebarProvider>
       </body>

@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,18 +13,11 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PiggyBankIcon, PlusCircle, AlertTriangle, Tag, CircleDollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Budget, Transaction } from "@/types"; 
+import type { Budget } from "@/types"; 
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
-
-// Mocked transactions for budget calculation for now
-const mockTransactions: Transaction[] = [
-    { id: "1", description: "Groceries", amount: 75, date: "2024-07-10", type: "Expense", category: "Food" },
-    { id: "2", description: "Movie Tickets", amount: 30, date: "2024-07-12", type: "Expense", category: "Entertainment" },
-    { id: "3", description: "Lunch", amount: 15, date: "2024-07-15", type: "Expense", category: "Food" },
-];
-
+import { useTransactions } from "@/contexts/transactions-context"; // Import useTransactions
 
 const budgetSchema = z.object({
   categoryName: z.string().min(2, "Category name must be at least 2 characters"),
@@ -36,6 +30,7 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const { toast } = useToast();
   const { selectedCurrency } = useCurrency();
+  const { transactions } = useTransactions(); // Get transactions from context
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -45,15 +40,19 @@ export default function BudgetsPage() {
     },
   });
 
+  const calculateCurrentSpending = (categoryName: string) => {
+    return transactions
+      .filter(t => t.category.toLowerCase() === categoryName.toLowerCase() && t.type === "Expense")
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
   const onSubmit = (data: BudgetFormData) => {
-    const currentSpending = mockTransactions
-        .filter(t => t.category.toLowerCase() === data.categoryName.toLowerCase() && t.type === "Expense")
-        .reduce((sum, t) => sum + t.amount, 0);
+    const currentSpending = calculateCurrentSpending(data.categoryName);
 
     const newBudget: Budget = {
       id: Date.now().toString(),
       ...data,
-      currentSpending: currentSpending,
+      currentSpending: currentSpending, // This will be 0 initially or based on past transactions
     };
     setBudgets((prev) => [newBudget, ...prev]);
     toast({
@@ -62,6 +61,13 @@ export default function BudgetsPage() {
     });
     form.reset();
   };
+  
+  // Recalculate currentSpending for each budget whenever transactions change
+  const updatedBudgets = budgets.map(budget => ({
+    ...budget,
+    currentSpending: calculateCurrentSpending(budget.categoryName)
+  }));
+
 
   return (
     <div className="container mx-auto py-8">
@@ -102,7 +108,7 @@ export default function BudgetsPage() {
               <CardDescription>Track your spending against your budget limits.</CardDescription>
             </CardHeader>
             <CardContent>
-              {budgets.length === 0 ? (
+              {updatedBudgets.length === 0 ? (
                 <div className="text-center py-10">
                     <PiggyBankIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">No budgets created yet.</p>
@@ -110,10 +116,10 @@ export default function BudgetsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {budgets.map((budget) => {
-                    const progress = Math.min((budget.currentSpending / budget.spendingLimit) * 100, 100);
-                    const isOverLimit = budget.currentSpending > budget.spendingLimit;
-                    const isApproachingLimit = progress >= 80 && !isOverLimit;
+                  {updatedBudgets.map((budget) => {
+                    const progress = budget.spendingLimit > 0 ? Math.min((budget.currentSpending / budget.spendingLimit) * 100, 100) : 0;
+                    const isOverLimit = budget.spendingLimit > 0 && budget.currentSpending > budget.spendingLimit;
+                    const isApproachingLimit = budget.spendingLimit > 0 && progress >= 80 && !isOverLimit;
 
                     return (
                       <Card key={budget.id} className="shadow-md">
@@ -129,14 +135,14 @@ export default function BudgetsPage() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <Progress value={progress} className={isOverLimit ? "bg-destructive" : (isApproachingLimit ? "bg-yellow-400" : "")} aria-label={`${budget.categoryName} budget progress`} />
+                          <Progress value={progress} className={cn(isOverLimit ? "!bg-destructive" : (isApproachingLimit ? "bg-yellow-400" : ""))} aria-label={`${budget.categoryName} budget progress`} />
                           <div className="mt-2 text-sm text-muted-foreground">
                             {progress.toFixed(0)}% of budget used
                           </div>
                         </CardContent>
                         {(isOverLimit || isApproachingLimit) && (
                           <CardFooter>
-                            <Alert variant={isOverLimit ? "destructive" : "default"} className={isApproachingLimit && !isOverLimit ? "border-yellow-500 text-yellow-700 [&>svg]:text-yellow-500" : ""}>
+                            <Alert variant={isOverLimit ? "destructive" : "default"} className={isApproachingLimit && !isOverLimit ? "border-yellow-500 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-500 dark:[&>svg]:text-yellow-400" : ""}>
                               <AlertTriangle className="h-4 w-4" />
                               <AlertTitle>
                                 {isOverLimit ? "Budget Exceeded" : "Approaching Limit"}

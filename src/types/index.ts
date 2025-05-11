@@ -14,7 +14,7 @@ export interface Budget {
   id:string;
   categoryName: string;
   spendingLimit: number;
-  currentSpending: number; // This would typically be calculated
+  currentSpending: number; // This will be calculated from transactions
 }
 
 export interface ChatMessage {
