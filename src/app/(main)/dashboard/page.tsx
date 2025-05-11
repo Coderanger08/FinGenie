@@ -5,14 +5,14 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { BarChart, PieChart, Pie, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
+import { BarChart, PieChart, Pie, Bar, XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, AlertTriangle, DollarSign, TrendingUp } from "lucide-react";
 import type { Transaction, Budget } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, useMemo } from "react";
 import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
-import { useTransactions } from "@/contexts/transactions-context"; // Import useTransactions
+import { useTransactions } from "@/contexts/transactions-context";
 import { parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -24,14 +24,14 @@ const mockBudgets: Budget[] = [
 ];
 
 const chartConfigBase = {
-  value: { label: "Amount" }, // Base color will be applied per bar by fill property
+  value: { label: "Amount" }, 
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const { selectedCurrency } = useCurrency();
-  const { transactions } = useTransactions(); // Use transactions from context
+  const { transactions } = useTransactions(); 
 
   useEffect(() => setMounted(true), []);
 
@@ -39,11 +39,10 @@ export default function DashboardPage() {
   const totalExpenses = useMemo(() => transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0), [transactions]);
   const currentBalance = useMemo(() => totalIncome - totalExpenses, [totalIncome, totalExpenses]);
   
-  // Mocked savings data - this could also come from context or state if dynamic
   const savingsGoalAmount = 10000;
   const currentSavings = 2500; 
   const savingsProgress = (currentSavings / savingsGoalAmount) * 100;
-  const projectedBalance = currentBalance + (totalIncome * 0.1); // Simple projection
+  const projectedBalance = currentBalance + (totalIncome * 0.1); 
 
   const spendingDataRaw = useMemo(() => {
     const spendingByCategory: Record<string, number> = {};
@@ -100,8 +99,21 @@ export default function DashboardPage() {
 
 
   if (!mounted) {
-    // TODO: Add a loading skeleton here
-    return null; 
+    return <div className="container mx-auto py-8 animate-pulse">
+      <div className="h-8 bg-muted rounded w-1/4 mb-8"></div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        {[...Array(4)].map((_, i) => <Card key={i} className="h-32 bg-muted"></Card>)}
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 mb-8">
+         <Card className="h-80 bg-muted"></Card>
+         <Card className="h-80 bg-muted"></Card>
+      </div>
+       <Card className="h-32 bg-muted mb-8"></Card>
+      <div className="grid gap-6 md:grid-cols-2 mb-8">
+         <Card className="h-64 bg-muted"></Card>
+         <Card className="h-64 bg-muted"></Card>
+      </div>
+    </div>;
   }
 
   const chartTooltipFormatter = (value: unknown) => {
@@ -119,7 +131,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Financial Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">Financial Dashboard</h1>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card className={cardHoverEffect}>
@@ -170,26 +182,51 @@ export default function DashboardPage() {
         <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Spending Breakdown</CardTitle>
+            <CardDescription>Visual overview of your expenses by category.</CardDescription>
           </CardHeader>
           <CardContent>
             {spendingDataRaw.length > 0 ? (
-              <ChartContainer config={chartConfigSpending} className="mx-auto aspect-square max-h-[300px]">
-                <PieChart>
-                  <ChartTooltip 
-                    content={
-                      <ChartTooltipContent 
-                        hideLabel 
-                        formatter={(value, name) => pieChartTooltipFormatter(value as number, name as string)}
-                      />
-                    } 
-                  />
-                  <Pie data={spendingDataRaw} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                    {spendingDataRaw.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <ChartLegend content={<ChartLegendContent nameKey="name"/>} />
-                </PieChart>
+              <ChartContainer config={chartConfigSpending} className="mx-auto aspect-square max-h-[350px] min-h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <ChartTooltip 
+                      cursor={false}
+                      content={
+                        <ChartTooltipContent 
+                          hideLabel 
+                          formatter={(value, name) => pieChartTooltipFormatter(value as number, name as string)}
+                        />
+                      } 
+                    />
+                    <Pie 
+                      data={spendingDataRaw} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius="80%" 
+                      labelLine={false}
+                      label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        const percentage = (percent * 100).toFixed(0);
+                        if (parseInt(percentage) < 5) return null; // Hide small percentage labels
+                        return (
+                          <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="10px">
+                            {`${name} (${percentage}%)`}
+                          </text>
+                        );
+                      }}
+                    >
+                      {spendingDataRaw.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent nameKey="name" className="text-xs"/>} wrapperStyle={{paddingTop: '1rem'}}/>
+                  </PieChart>
+                </ResponsiveContainer>
               </ChartContainer>
             ) : (
               <p className="text-muted-foreground text-center py-10">No spending data available for the chart.</p>
@@ -199,30 +236,32 @@ export default function DashboardPage() {
         <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Income Sources</CardTitle>
+             <CardDescription>Comparison of your income streams.</CardDescription>
           </CardHeader>
           <CardContent>
             {incomeDataRaw.length > 0 ? (
-               <ChartContainer config={chartConfigIncome} className="w-full h-[300px]">
-                <BarChart accessibilityLayer data={incomeDataRaw} layout="vertical" margin={{ left: 20, right: 30 }}>
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" tickFormatter={(value) => chartTooltipFormatter(value)} />
-                  <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} />
-                  <ChartTooltip 
-                    cursor={false} 
-                    content={
-                      <ChartTooltipContent 
-                        hideLabel 
-                        formatter={(value) => chartTooltipFormatter(value)} 
-                      />
-                    }
-                  />
-                  <Bar dataKey="value" radius={5}>
-                      {incomeDataRaw.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                   <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-                </BarChart>
+               <ChartContainer config={chartConfigIncome} className="w-full h-[350px] min-h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart accessibilityLayer data={incomeDataRaw} layout="vertical" margin={{ left: 20, right: 30, top:5, bottom:20 }}>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(value) => chartTooltipFormatter(value)} axisLine={false} tickLine={false} fontSize="10px"/>
+                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={80} fontSize="10px" />
+                    <ChartTooltip 
+                      cursor={{fill: 'hsl(var(--muted))', radius: 5}} 
+                      content={
+                        <ChartTooltipContent 
+                          hideLabel 
+                          formatter={(value) => chartTooltipFormatter(value)} 
+                        />
+                      }
+                    />
+                    <Bar dataKey="value" radius={[0, 5, 5, 0]} barSize={20}>
+                        {incomeDataRaw.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1" />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </ChartContainer>
             ) : (
                  <p className="text-muted-foreground text-center py-10">No income data available for the chart.</p>
@@ -265,7 +304,7 @@ export default function DashboardPage() {
                     <TableRow key={transaction.id} className="transition-colors hover:bg-muted/30">
                       <TableCell className="font-medium">{transaction.description}</TableCell>
                       <TableCell><Badge variant="outline">{transaction.category}</Badge></TableCell>
-                      <TableCell className={`text-right ${transaction.type === 'Income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <TableCell className={`text-right font-medium ${transaction.type === 'Income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {transaction.type === 'Income' ? '+' : '-'}{formatCurrency(transaction.amount, selectedCurrency)}
                       </TableCell>
                     </TableRow>

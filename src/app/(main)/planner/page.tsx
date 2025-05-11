@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlusCircle, Trash2, Activity, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { PlannerOutputData } from "@/types";
@@ -44,7 +45,7 @@ type PlannerFormData = z.infer<typeof plannerSchema>;
 
 
 const chartConfigBase = {
-  amount: { label: "Amount" }, // Base color will be applied per bar by fill property
+  amount: { label: "Amount" }, 
 } satisfies import("@/components/ui/chart").ChartConfig;
 
 
@@ -62,8 +63,8 @@ export default function BudgetPlannerPage() {
     resolver: zodResolver(plannerSchema),
     defaultValues: {
       monthlyIncome: 5000,
-      spending: [{ category: "Rent", amount: 1500 }, { category: "Groceries", amount: 400 }],
-      goals: [{ goal: "Vacation Fund", targetAmount: 2000 }],
+      spending: [{ category: "Rent", amount: 1500 }, { category: "Groceries", amount: 400 }, {category: "Entertainment", amount: 200}],
+      goals: [{ goal: "Vacation Fund", targetAmount: 2000 }, {goal: "New Laptop", targetAmount: 1200}],
       currentSavingsRate: 10,
       riskTolerance: "medium",
       lifestyleEventsNotes: "",
@@ -123,8 +124,15 @@ export default function BudgetPlannerPage() {
     return String(value);
   };
 
-  if (!mounted && plannerOutput) { 
-     return null;
+   if (!mounted && !isGenerating && !plannerOutput) { 
+     return <div className="container mx-auto py-8 animate-pulse">
+       <div className="h-8 bg-muted rounded w-1/3 mb-2"></div>
+       <div className="h-4 bg-muted rounded w-1/2 mb-8"></div>
+       <div className="grid gap-8 lg:grid-cols-3">
+          <Card className="lg:col-span-1 h-[600px] bg-muted"></Card>
+          <Card className="lg:col-span-2 h-[600px] bg-muted"></Card>
+       </div>
+     </div>;
   }
 
   return (
@@ -133,7 +141,7 @@ export default function BudgetPlannerPage() {
       <p className="text-muted-foreground mb-8">Optimize your budget with AI-powered recommendations.</p>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-1 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader>
             <CardTitle>Your Financial Information</CardTitle>
             <CardDescription>Provide details for a personalized plan.</CardDescription>
@@ -141,35 +149,41 @@ export default function BudgetPlannerPage() {
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div>
-                <Label htmlFor="monthlyIncome">Monthly Income</Label>
+                <Label htmlFor="monthlyIncome">Monthly Income ({selectedCurrency})</Label>
                 <Input id="monthlyIncome" type="number" {...form.register("monthlyIncome")} />
                 {form.formState.errors.monthlyIncome && <p className="text-sm text-destructive mt-1">{form.formState.errors.monthlyIncome.message}</p>}
               </div>
 
               <div>
-                <Label>Monthly Spending</Label>
+                <Label>Monthly Spending ({selectedCurrency})</Label>
                 {spendingFields.map((field, index) => (
                   <div key={field.id} className="flex gap-2 items-end mt-2">
                     <Input {...form.register(`spending.${index}.category`)} placeholder="Category" className="flex-1"/>
                     <Input type="number" {...form.register(`spending.${index}.amount`)} placeholder="Amount" className="w-28"/>
-                    <Button type="button" variant="outline" size="icon" onClick={() => removeSpending(index)}><Trash2 className="h-4 w-4"/></Button>
+                    <Button type="button" variant="outline" size="icon" onClick={() => removeSpending(index)} className="hover:bg-destructive/10 hover:border-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                {(form.formState.errors.spending && (form.formState.errors.spending.message || form.formState.errors.spending.root?.message)) && <p className="text-sm text-destructive mt-1">{form.formState.errors.spending.message || form.formState.errors.spending.root?.message}</p>}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendSpending({ category: "", amount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Spending Category</Button>
+                 {form.formState.errors.spending?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.spending.root.message}</p>}
+                {form.formState.errors.spending?.map((err, idx) => (
+                    (err?.category || err?.amount) && <p key={idx} className="text-sm text-destructive mt-1">{err?.category?.message || err?.amount?.message}</p>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => appendSpending({ category: "", amount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Spending</Button>
               </div>
               
               <div>
-                <Label>Financial Goals</Label>
+                <Label>Financial Goals ({selectedCurrency})</Label>
                 {goalFields.map((field, index) => (
                   <div key={field.id} className="flex gap-2 items-end mt-2">
                     <Input {...form.register(`goals.${index}.goal`)} placeholder="Goal" className="flex-1"/>
-                    <Input type="number" {...form.register(`goals.${index}.targetAmount`)} placeholder="Target Amount" className="w-36"/>
-                    <Button type="button" variant="outline" size="icon" onClick={() => removeGoal(index)}><Trash2 className="h-4 w-4"/></Button>
+                    <Input type="number" {...form.register(`goals.${index}.targetAmount`)} placeholder="Target" className="w-36"/>
+                    <Button type="button" variant="outline" size="icon" onClick={() => removeGoal(index)} className="hover:bg-destructive/10 hover:border-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                {(form.formState.errors.goals && (form.formState.errors.goals.message || form.formState.errors.goals.root?.message)) && <p className="text-sm text-destructive mt-1">{form.formState.errors.goals.message || form.formState.errors.goals.root?.message}</p>}
-                <Button type="button" variant="outline" size="sm" onClick={() => appendGoal({ goal: "", targetAmount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Financial Goal</Button>
+                {form.formState.errors.goals?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.goals.root.message}</p>}
+                 {form.formState.errors.goals?.map((err, idx) => (
+                    (err?.goal || err?.targetAmount) && <p key={idx} className="text-sm text-destructive mt-1">{err?.goal?.message || err?.targetAmount?.message}</p>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => appendGoal({ goal: "", targetAmount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Goal</Button>
               </div>
 
               <div>
@@ -212,7 +226,7 @@ export default function BudgetPlannerPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader>
             <CardTitle>AI Generated Budget Plan</CardTitle>
             <CardDescription>Recommendations to optimize your finances.</CardDescription>
@@ -221,7 +235,7 @@ export default function BudgetPlannerPage() {
             {isGenerating && (
               <div className="flex flex-col items-center justify-center h-64">
                 <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground">Generating your personalized plan...</p>
+                <p className="text-muted-foreground">FinGenie is crafting your personalized plan...</p>
               </div>
             )}
             {!isGenerating && !plannerOutput && (
@@ -231,45 +245,48 @@ export default function BudgetPlannerPage() {
               </div>
             )}
             {plannerOutput && !isGenerating && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Summary</h3>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">{plannerOutput.summary}</p>
+                  <h3 className="text-xl font-semibold mb-2">Summary & Advice</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{plannerOutput.summary}</p>
+                </div>
+                <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 rounded-lg shadow">
+                  <h3 className="text-lg font-semibold mb-1">Recommended Savings Rate</h3>
+                  <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{plannerOutput.recommendedSavingsRate}%</p>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Recommended Savings Rate</h3>
-                  <p className="text-2xl font-bold text-accent">{plannerOutput.recommendedSavingsRate}%</p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Adjusted Spending</h3>
+                  <h3 className="text-xl font-semibold mb-3">Adjusted Spending Plan ({selectedCurrency})</h3>
                    {adjustedSpendingChartData.length > 0 ? (
-                    <ChartContainer config={chartConfigBase} className="w-full h-[300px]">
-                        <BarChart data={adjustedSpendingChartData} layout="vertical" margin={{ left: 20, right: 20 }}>
-                            <CartesianGrid horizontal={false} />
-                            <XAxis type="number" dataKey="amount" tickFormatter={(value) => chartTooltipFormatter(value)} />
-                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeWidth={0} width={100} />
+                    <ChartContainer config={chartConfigBase} className="w-full h-[350px] min-h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={adjustedSpendingChartData} layout="vertical" margin={{ left: 25, right: 25, top:5, bottom:5 }}>
+                            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                            <XAxis type="number" dataKey="amount" tickFormatter={(value) => chartTooltipFormatter(value)} axisLine={false} tickLine={false} fontSize="10px"/>
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeDasharray="0" width={100} fontSize="10px"/>
                             <ChartTooltip 
-                                cursor={false} 
+                                cursor={{fill: 'hsl(var(--muted))', radius: 5}} 
                                 content={
                                     <ChartTooltipContent 
-                                        formatter={(value) => chartTooltipFormatter(value)} 
+                                        formatter={(value, name) => [chartTooltipFormatter(value), name]} 
+                                        itemStyle={{fontSize: '10px'}}
+                                        labelStyle={{fontSize: '10px', fontWeight: 'bold'}}
                                     />
                                 } 
                             />
-                            <Bar dataKey="amount" radius={5}>
+                            <Bar dataKey="amount" radius={[0, 5, 5, 0]} barSize={15}>
                                 {adjustedSpendingChartData.map((entry) => (
-                                    <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                                    <Cell key={`cell-${entry.name}`} fill={entry.fill} className="focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1"/>
                                 ))}
                             </Bar>
-                            {/* <ChartLegend content={<ChartLegendContent />} /> // Legend can be verbose for many categories */}
                         </BarChart>
+                      </ResponsiveContainer>
                     </ChartContainer>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No spending adjustments provided.</p>
+                        <p className="text-sm text-muted-foreground">No spending adjustments provided by AI.</p>
                     )}
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Investment Allocation</h3>
+                  <h3 className="text-xl font-semibold mb-3">Investment Allocation</h3>
                   {plannerOutput.investmentAllocation.length > 0 ? (
                     <Table>
                       <TableHeader>
@@ -280,15 +297,15 @@ export default function BudgetPlannerPage() {
                       </TableHeader>
                       <TableBody>
                         {plannerOutput.investmentAllocation.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{item.assetClass}</TableCell>
-                            <TableCell className="text-right">{item.percentage}%</TableCell>
+                          <TableRow key={index} className="hover:bg-muted/50">
+                            <TableCell className="font-medium">{item.assetClass}</TableCell>
+                            <TableCell className="text-right font-medium">{item.percentage}%</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No specific investment allocation provided.</p>
+                    <p className="text-sm text-muted-foreground">No specific investment allocation provided by AI.</p>
                   )}
                 </div>
               </div>
@@ -299,3 +316,4 @@ export default function BudgetPlannerPage() {
     </div>
   );
 }
+
