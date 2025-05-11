@@ -6,7 +6,7 @@ import {
   PiggyBankIcon,
   BotMessageSquare,
   ActivityIcon,
-  Settings,
+  Settings as SettingsIcon, // Renamed to avoid conflict if a Settings component is created
   PanelLeft,
 } from 'lucide-react';
 import Logo from '@/components/logo';
@@ -21,9 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { cn } from '@/lib/utils';
-import { usePathname } from 'next/navigation'; // Import usePathname
-import NavLink from '@/components/nav-link'; // Assuming NavLink component for active state
+import NavLink from '@/components/nav-link';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,6 +29,7 @@ const navItems = [
   { href: '/budgets', label: 'Budgets', icon: PiggyBankIcon },
   { href: '/chatbot', label: 'AI Chatbot', icon: BotMessageSquare },
   { href: '/planner', label: 'Budget Planner', icon: ActivityIcon },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -100,10 +99,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings">Settings</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
+              {/* Logout option removed as per "get rid of log in function" */}
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
