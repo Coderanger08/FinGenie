@@ -17,11 +17,25 @@ export interface Budget {
   currentSpending: number; // This will be calculated from transactions
 }
 
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+  fill?: string; // Optional: for specific color suggestions by AI
+}
+export interface ChartConfig {
+  type: 'pie' | 'bar';
+  data: ChartDataPoint[];
+  title?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}
+
 export interface ChatMessage {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   timestamp: number;
+  chart?: ChartConfig; // Optional chart data
 }
 
 export interface PlannerOutputData {
