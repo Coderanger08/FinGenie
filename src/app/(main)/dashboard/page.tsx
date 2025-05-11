@@ -14,6 +14,7 @@ import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
 import { useTransactions } from "@/contexts/transactions-context"; // Import useTransactions
 import { parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Mocked budgets for budget alerts, can be moved to context or fetched if needed elsewhere
 const mockBudgets: Budget[] = [
@@ -114,13 +115,14 @@ export default function DashboardPage() {
     return [formatCurrency(value, selectedCurrency), name];
   };
 
+  const cardHoverEffect = "transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1";
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8">Financial Dashboard</h1>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Current Balance</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -132,7 +134,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-green-500" />
@@ -142,7 +144,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <ArrowDownRight className="h-4 w-4 text-red-500" />
@@ -152,7 +154,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Projected Balance</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -165,7 +167,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Spending Breakdown</CardTitle>
           </CardHeader>
@@ -194,7 +196,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Income Sources</CardTitle>
           </CardHeader>
@@ -229,7 +231,7 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <Card className="mb-8">
+      <Card className={`${cardHoverEffect} mb-8`}>
         <CardHeader>
           <CardTitle>Savings Goals</CardTitle>
           <CardDescription>Your progress towards your financial goals.</CardDescription>
@@ -244,7 +246,7 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
@@ -260,7 +262,7 @@ export default function DashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {transactions.slice(0, 5).map((transaction) => (
-                    <TableRow key={transaction.id}>
+                    <TableRow key={transaction.id} className="transition-colors hover:bg-muted/30">
                       <TableCell className="font-medium">{transaction.description}</TableCell>
                       <TableCell><Badge variant="outline">{transaction.category}</Badge></TableCell>
                       <TableCell className={`text-right ${transaction.type === 'Income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -276,14 +278,19 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={cardHoverEffect}>
           <CardHeader>
             <CardTitle>Budget Alerts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {updatedMockBudgets.filter(b => b.spendingLimit > 0 && (b.currentSpending / b.spendingLimit) > 0.8).map(budget => (
               <Alert key={budget.id} variant={(budget.currentSpending / budget.spendingLimit) >= 1 ? "destructive" : "default"}
-                className={(budget.currentSpending / budget.spendingLimit) >= 0.8 && (budget.currentSpending / budget.spendingLimit) < 1 ? "border-yellow-500 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-500 dark:[&>svg]:text-yellow-400" : ""}
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  (budget.currentSpending / budget.spendingLimit) >= 0.8 && (budget.currentSpending / budget.spendingLimit) < 1 
+                  ? "border-yellow-500 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-500 dark:[&>svg]:text-yellow-400 hover:shadow-md" 
+                  : "hover:shadow-md"
+                )}
               >
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>

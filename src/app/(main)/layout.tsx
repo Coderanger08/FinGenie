@@ -35,7 +35,7 @@ const navItems = [
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex shadow-sm">
         <div className="flex h-16 items-center border-b px-6">
           <Logo />
         </div>
@@ -61,7 +61,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <span className="sr-only">Toggle Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="sm:max-w-xs">
+            <SheetContent side="left" className="sm:max-w-xs bg-background">
               <nav className="grid gap-6 text-lg font-medium">
                 <div className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base">
                    <Logo />
@@ -70,7 +70,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-primary transition-colors duration-200"
                   >
                     <item.icon className="h-5 w-5" />
                     {item.label}
@@ -84,7 +84,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Button
                 variant="outline"
                 size="icon"
-                className="overflow-hidden rounded-full"
+                className="overflow-hidden rounded-full hover:shadow-md transition-shadow"
               >
                 <Image
                   src="https://picsum.photos/36/36"
@@ -96,7 +96,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="shadow-xl">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -107,7 +107,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 animate-in fade-in-50 duration-500">
           {children}
         </main>
       </div>
