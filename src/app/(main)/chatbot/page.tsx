@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useTransition } from "react";
@@ -5,17 +6,66 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, BotMessageSquare, User, Loader2 } from "lucide-react";
-import type { ChatMessage } from "@/types";
+import type { ChatMessage, Transaction } from "@/types";
 import { getChatbotResponseAction } from "./actions";
 import { cn } from "@/lib/utils";
+import { useTransactions } from "@/contexts/transactions-context";
+import { formatCurrency } from "@/lib/currency-utils";
+import { useCurrency } from "@/contexts/currency-context";
+import { format, parseISO } from "date-fns";
 
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, startBotTypingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { transactions } = useTransactions();
+  const { selectedCurrency } = useCurrency();
+
+  const generateFinancialContext = (): string => {
+    let context = "User's Financial Context:\n";
+
+    // Recent Transactions (last 5)
+    if (transactions.length > 0) {
+      context += "\nRecent Transactions (last 5):\n";
+      const recentTransactions = transactions.slice(0, 5);
+      recentTransactions.forEach(t => {
+        context += `- ${t.type === 'Income' ? 'Received' : 'Spent'} ${formatCurrency(t.amount, selectedCurrency)} for "${t.description}" (Category: ${t.category}) on ${format(parseISO(t.date), "yyyy-MM-dd")}\n`;
+      });
+    } else {
+      context += "\nNo transaction data available.\n";
+    }
+
+    // Top Spending Categories (all time for simplicity, could be last 30 days)
+    const spendingByCategory: Record<string, number> = {};
+    transactions
+      .filter(t => t.type === 'Expense')
+      .forEach(t => {
+        spendingByCategory[t.category] = (spendingByCategory[t.category] || 0) + t.amount;
+      });
+
+    const sortedSpending = Object.entries(spendingByCategory)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3); // Top 3
+
+    if (sortedSpending.length > 0) {
+      context += "\nTop Spending Categories:\n";
+      sortedSpending.forEach(([category, amount]) => {
+        context += `- ${category}: ${formatCurrency(amount, selectedCurrency)}\n`;
+      });
+    }
+    
+    // Overall Summary
+    const totalIncome = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    context += `\nOverall Summary (all time):\n- Total Income: ${formatCurrency(totalIncome, selectedCurrency)}\n- Total Expenses: ${formatCurrency(totalExpenses, selectedCurrency)}\n- Net: ${formatCurrency(totalIncome - totalExpenses, selectedCurrency)}\n`;
+
+
+    return context;
+  };
+
 
   const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
@@ -32,8 +82,7 @@ export default function ChatbotPage() {
 
     startBotTypingTransition(async () => {
       try {
-        // Here you could potentially pass some financial context if available
-        const financialContext = "User has a moderate risk tolerance and is saving for a house.";
+        const financialContext = generateFinancialContext();
         const botResponse = await getChatbotResponseAction({ question: userMessage.text, financialContext });
         const aiMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
@@ -73,7 +122,7 @@ export default function ChatbotPage() {
             <BotMessageSquare className="h-6 w-6 text-primary" />
             AI Financial Advisor
           </CardTitle>
-          <CardDescription>Ask me any financial questions you have!</CardDescription>
+          <CardDescription>Ask me any financial questions you have! I can use your transaction history to give personalized advice.</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col p-0">
           <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
@@ -102,7 +151,7 @@ export default function ChatbotPage() {
                     )}
                   >
                     <p style={{ whiteSpace: 'pre-wrap'}}>{message.text}</p>
-                    <p className={cn("mt-1 text-xs", message.sender === "user" ? "text-blue-200" : "text-gray-400" )}>
+                    <p className={cn("mt-1 text-xs", message.sender === "user" ? "text-primary-foreground/80" : "text-muted-foreground/80" )}>
                         {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
