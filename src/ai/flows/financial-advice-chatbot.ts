@@ -60,6 +60,8 @@ When answering, consider common financial queries such as:
 Provide a helpful and practical answer. If the question is vague, you can suggest the user provide more details for a more tailored response. Focus on providing actionable steps where possible.
 If the user asks about spending less, and their financial context includes spending data, try to identify 1-2 categories from their transactions where they spend a significant amount and could potentially reduce expenses.
 For questions about saving, if income and expense data is present, give concrete examples based on their numbers.
+
+Ensure your response is a JSON object with a single key "answer" which holds your textual advice. For example: {"answer": "Based on your spending, you could save more by..."}
 `,
 });
 
@@ -74,3 +76,4 @@ const financialAdviceChatbotFlow = ai.defineFlow(
     return output!;
   }
 );
+
