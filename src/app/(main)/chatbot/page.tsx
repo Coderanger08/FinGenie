@@ -16,20 +16,28 @@ import { formatCurrency } from "@/lib/currency-utils";
 import { useCurrency } from "@/contexts/currency-context";
 import { format, parseISO } from "date-fns";
 
-const WELCOME_MESSAGE: ChatMessage = {
-  id: "welcome-message",
-  text: "Hello! I'm FinGenie, your AI Financial Advisor. How can I help you today? Feel free to ask me about managing your finances, saving money, or understanding your spending.",
-  sender: "ai",
-  timestamp: Date.now(),
-};
+const initialWelcomeMessageText = "Hello! I'm FinGenie, your AI Financial Advisor. How can I help you today? Feel free to ask me about managing your finances, saving money, or understanding your spending.";
 
 export default function ChatbotPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, startBotTypingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { transactions } = useTransactions();
   const { selectedCurrency } = useCurrency();
+
+  useEffect(() => {
+    // Initialize with welcome message on client side to avoid hydration mismatch with Date.now()
+    setMessages([
+      {
+        id: "welcome-message",
+        text: initialWelcomeMessageText,
+        sender: "ai",
+        timestamp: Date.now(), // Executed only on client
+      }
+    ]);
+  }, []);
+
 
   const generateFinancialContext = (): string => {
     let context = "User's Financial Context:\n";
