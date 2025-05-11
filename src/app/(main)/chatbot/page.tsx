@@ -16,8 +16,15 @@ import { formatCurrency } from "@/lib/currency-utils";
 import { useCurrency } from "@/contexts/currency-context";
 import { format, parseISO } from "date-fns";
 
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome-message",
+  text: "Hello! I'm FinGenie, your AI Financial Advisor. How can I help you today? Feel free to ask me about managing your finances, saving money, or understanding your spending.",
+  sender: "ai",
+  timestamp: Date.now(),
+};
+
 export default function ChatbotPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, startBotTypingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
