@@ -16,7 +16,7 @@ import { formatCurrency } from "@/lib/currency-utils";
 import { useCurrency } from "@/contexts/currency-context";
 import { format, parseISO } from "date-fns";
 import { ResponsiveContainer, PieChart as RechartsPieChart, Pie, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
-import { ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 
 
 const initialWelcomeMessageText = "Hello! I'm FinGenie, your AI Financial Advisor. How can I help you today? Feel free to ask me about managing your finances, saving money, or understanding your spending. You can also ask me to 'show my spending breakdown chart' or 'graph my income vs expenses'.";
@@ -31,17 +31,27 @@ export default function ChatbotPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { transactions } = useTransactions();
   const { selectedCurrency } = useCurrency();
+  const [clientTimestamp, setClientTimestamp] = useState<number | null>(null);
+
 
   useEffect(() => {
+    // Set a client-side timestamp after hydration
+    setClientTimestamp(Date.now());
+  }, []);
+
+
+  useEffect(() => {
+    if (clientTimestamp === null) return; // Don't set initial message until client timestamp is ready
+
     setMessages([
       {
         id: "welcome-message",
         text: initialWelcomeMessageText,
         sender: "ai",
-        timestamp: Date.now(),
+        timestamp: clientTimestamp,
       }
     ]);
-  }, []);
+  }, [clientTimestamp]);
 
 
   const generateFinancialContext = (): string => {
@@ -85,13 +95,13 @@ export default function ChatbotPage() {
 
   const handleSendMessage = async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || clientTimestamp === null) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: clientTimestamp.toString() + Math.random(), // Ensure unique ID with client-side randomness
       text: inputValue,
       sender: "user",
-      timestamp: Date.now(),
+      timestamp: clientTimestamp,
     };
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
@@ -101,20 +111,20 @@ export default function ChatbotPage() {
         const financialContext = generateFinancialContext();
         const botResponse = await getChatbotResponseAction({ question: userMessage.text, financialContext });
         const aiMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: (clientTimestamp + 1).toString() + Math.random(),  // Ensure unique ID
           text: botResponse.answer,
           sender: "ai",
-          timestamp: Date.now(),
+          timestamp: clientTimestamp +1, // ensure timestamp is different from user's
           chart: botResponse.chart, // Include chart data
         };
         setMessages((prev) => [...prev, aiMessage]);
       } catch (error) {
         console.error("Failed to get bot response", error);
         const errorMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: (clientTimestamp + 1).toString() + Math.random(), // Ensure unique ID
           text: "Sorry, I encountered an error. Please try again.",
           sender: "ai",
-          timestamp: Date.now(),
+          timestamp: clientTimestamp + 1, // ensure timestamp is different from user's
         };
         setMessages((prev) => [...prev, errorMessage]);
       }
@@ -251,9 +261,11 @@ export default function ChatbotPage() {
                     {message.sender === "ai" && message.chart && (
                        <ChatbotChart chartConfig={message.chart} />
                     )}
-                    <p className={cn("mt-1 text-xs", message.sender === "user" ? "text-primary-foreground/80" : "text-muted-foreground/80" )}>
-                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    {clientTimestamp !== null && ( // Only render timestamp if clientTimestamp is available
+                       <p className={cn("mt-1 text-xs", message.sender === "user" ? "text-primary-foreground/80" : "text-muted-foreground/80" )}>
+                           {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </p>
+                    )}
                   </div>
                    {message.sender === "user" && (
                     <Avatar className="h-8 w-8 self-start mt-1">
@@ -286,9 +298,9 @@ export default function ChatbotPage() {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type your financial question..."
                 className="flex-1"
-                disabled={isBotTyping}
+                disabled={isBotTyping || clientTimestamp === null}
               />
-              <Button type="submit" size="icon" disabled={isBotTyping || !inputValue.trim()}>
+              <Button type="submit" size="icon" disabled={isBotTyping || !inputValue.trim() || clientTimestamp === null}>
                 {isBotTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-5 w-5" />}
                 <span className="sr-only">Send</span>
               </Button>
@@ -299,3 +311,4 @@ export default function ChatbotPage() {
     </div>
   );
 }
+
