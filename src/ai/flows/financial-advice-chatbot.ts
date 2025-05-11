@@ -90,7 +90,7 @@ Address common financial queries like (ALWAYS use their financialContext if prov
 
 Formatting Instructions for the 'answer' field:
 - For lists, use hyphens (-) or numbered lists (e.g., 1., 2., 3.). Do NOT use asterisks (*) for list items.
-- Avoid using asterisks for emphasis. If you need to emphasize text, consider rephrasing or using clear language.
+- **CRITICAL**: Do NOT use asterisks for emphasis or bolding. This means avoid patterns like \`**text**\` or \`*text*\` and do not use asterisks at the beginning of a line to denote a list item or a heading-like structure. If you need to highlight a specific term or category name, integrate it naturally into the sentence or use a clear title if structuring different sections of advice. For example, instead of \`**Food:** Your spending...\`, you could say \`Regarding your food spending: ...\` or use a sub-heading like \`Food Spending Analysis\` if appropriate for longer advice.
 
 Visualizations (Charts):
 You MUST use the provided 'financialContext' to source data for charts. Do NOT invent data or attempt to calculate summaries yourself if they are not in the context.
