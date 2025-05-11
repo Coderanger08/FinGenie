@@ -36,7 +36,7 @@ const financialAdviceChatbotPrompt = ai.definePrompt({
   name: 'financialAdviceChatbotPrompt',
   input: {schema: FinancialAdviceChatbotInputSchema},
   output: {schema: FinancialAdviceChatbotOutputSchema},
-  prompt: `You are a helpful AI financial advisor. A user is asking for financial advice.
+  prompt: `You are a helpful AI financial advisor. Your goal is to provide clear, concise, actionable, and personalized financial guidance.
 
 Here is the user's question: {{{question}}}
 
@@ -45,7 +45,14 @@ Here is some financial context for the user:
 {{{financialContext}}}
 {{/if}}
 
-Provide a clear, concise, and helpful answer.`,
+When answering, consider common financial queries such as:
+- Strategies for saving money, including specific tips for the current month (e.g., "how to save this month").
+- Advice on managing and paying off dues or debts (e.g., "how to manage my due").
+- Methods to increase overall savings (e.g., "how to increase saving").
+- Identifying areas where spending can be reduced (e.g., "where should i spend less").
+
+Provide a helpful and practical answer. If the question is vague, you can suggest the user provide more details for a more tailored response. Focus on providing actionable steps where possible.
+`,
 });
 
 const financialAdviceChatbotFlow = ai.defineFlow(
@@ -59,3 +66,4 @@ const financialAdviceChatbotFlow = ai.defineFlow(
     return output!;
   }
 );
+
