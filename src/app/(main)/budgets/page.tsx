@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
 import { useTransactions } from "@/contexts/transactions-context"; // Import useTransactions
+import { cn } from "@/lib/utils"; // Import cn
 
 const budgetSchema = z.object({
   categoryName: z.string().min(2, "Category name must be at least 2 characters"),
@@ -167,3 +168,4 @@ export default function BudgetsPage() {
     </div>
   );
 }
+
