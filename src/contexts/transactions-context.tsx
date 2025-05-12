@@ -1,14 +1,15 @@
-
 "use client";
 
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Transaction } from '@/types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface TransactionsContextType {
   transactions: Transaction[];
   addTransaction: (transactionData: Omit<Transaction, 'id' | 'date'> & { date: Date }) => void;
+  editTransaction: (id: string, transactionData: Omit<Transaction, 'id' | 'date'> & { date: Date }) => void;
+  deleteTransaction: (id: string) => void;
   setTransactions: Dispatch<SetStateAction<Transaction[]>>; // Allow direct setting if needed for advanced cases
 }
 
@@ -32,11 +33,28 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       ...transactionData,
       date: format(transactionData.date, "yyyy-MM-dd"),
     };
-    setTransactions((prevTransactions) => [newTransaction, ...prevTransactions]);
+    setTransactions((prevTransactions) => [newTransaction, ...prevTransactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
   }, []);
 
+  const editTransaction = useCallback((id: string, transactionData: Omit<Transaction, 'id' | 'date'> & { date: Date }) => {
+    setTransactions((prevTransactions) =>
+      prevTransactions.map((transaction) =>
+        transaction.id === id
+          ? { ...transaction, ...transactionData, date: format(transactionData.date, "yyyy-MM-dd") }
+          : transaction
+      ).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
+    );
+  }, []);
+
+  const deleteTransaction = useCallback((id: string) => {
+    setTransactions((prevTransactions) =>
+      prevTransactions.filter((transaction) => transaction.id !== id)
+    );
+  }, []);
+
+
   return (
-    <TransactionsContext.Provider value={{ transactions, addTransaction, setTransactions }}>
+    <TransactionsContext.Provider value={{ transactions, addTransaction, editTransaction, deleteTransaction, setTransactions }}>
       {children}
     </TransactionsContext.Provider>
   );
@@ -49,3 +67,4 @@ export function useTransactions(): TransactionsContextType {
   }
   return context;
 }
+
