@@ -3,24 +3,19 @@ import { adjustBudget, type AdjustBudgetInput, type AdjustBudgetOutput } from '@
 
 export async function getBudgetPlanAction(input: AdjustBudgetInput): Promise<AdjustBudgetOutput> {
   try {
-    // await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
     const result = await adjustBudget(input);
-    if (!result || !result.summary) {
-        // Provide a default structure if AI returns unexpected result
-        return { 
-            summary: "Could not generate a budget plan. Please check your inputs.",
-            adjustedSpending: {},
-            recommendedSavingsRate: input.savingsRate, // return original
-            investmentAllocation: []
-        };
-    }
+    // The adjustBudget flow itself now handles the case where AI output is critically flawed
+    // and returns a default error structure conforming to AdjustBudgetOutput.
+    // So, we can generally trust 'result' to be in the correct shape here,
+    // or it will be the error shape from the flow.
     return result;
   } catch (error) {
     console.error("Error in getBudgetPlanAction:", error);
-    // Return a structured error response
-    return { 
-      summary: "An error occurred while generating the budget plan. Please try again later.",
-      adjustedSpending: {},
+    // This catch block handles unexpected errors during the flow execution
+    // or if the flow throws an error explicitly.
+    return {
+      summary: "An unexpected error occurred while generating the budget plan. Please try again later.",
+      adjustedSpending: {}, // Or input.spending if you want to return original values
       recommendedSavingsRate: input.savingsRate,
       investmentAllocation: []
     };

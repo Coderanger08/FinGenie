@@ -32,20 +32,28 @@ const AdjustBudgetOutputSchema = z.object({
 });
 export type AdjustBudgetOutput = z.infer<typeof AdjustBudgetOutputSchema>;
 
+// Internal schema for the prompt, including pre-formatted strings
+const AdjustBudgetPromptInputSchema = AdjustBudgetInputSchema.extend({
+  spendingString: z.string().describe('A string representation of spending categories and amounts (e.g., "Food: 500; Rent: 1500").'),
+  goalsString: z.string().describe('A string representation of financial goals and target amounts (e.g., "Vacation: 2000; Emergency Fund: 5000").'),
+});
+type AdjustBudgetPromptInput = z.infer<typeof AdjustBudgetPromptInputSchema>;
+
+
 export async function adjustBudget(input: AdjustBudgetInput): Promise<AdjustBudgetOutput> {
   return adjustBudgetFlow(input);
 }
 
 const adjustBudgetPrompt = ai.definePrompt({
   name: 'adjustBudgetPrompt',
-  input: {schema: AdjustBudgetInputSchema},
+  input: {schema: AdjustBudgetPromptInputSchema}, // Use the new schema for prompt input
   output: {schema: AdjustBudgetOutputSchema},
   prompt: `You are FinGenie, an expert AI Financial Guidor. Your mission is to help the user make sound financial decisions by creating a personalized and actionable budget plan.
 
   Analyze the user's financial information meticulously:
   - Monthly Income: {{{income}}}
-  - Current Spending Categories and Amounts: {{#each (keys spending)}}{{{this}}}: {{{lookup ../spending this}}}{{/each}}
-  - Financial Goals and Target Amounts: {{#each (keys goals)}}{{{this}}}: {{{lookup ../goals this}}}{{/each}}
+  - Current Spending Categories and Amounts: {{{spendingString}}}
+  - Financial Goals and Target Amounts: {{{goalsString}}}
   - Current Savings Rate: {{{savingsRate}}}%
   - Risk Tolerance: {{{riskTolerance}}}
   - Lifestyle Events Notes: {{{lifestyleEventsNotes}}}
@@ -54,7 +62,7 @@ const adjustBudgetPrompt = ai.definePrompt({
 
   Your plan must include:
   1.  **Adjusted Spending Plan:**
-      *   Provide specific, adjusted spending amounts for each relevant category.
+      *   Provide specific, adjusted spending amounts for each relevant category found in "Current Spending Categories and Amounts". If a category from the input is not mentioned in your adjusted plan, assume its spending remains unchanged.
       *   For any category you suggest adjusting, clearly explain *why* this change is recommended and how it contributes to their overall financial health or goals.
       *   If you use a formula for rebalancing (e.g., NewBudget = (TotalBudget - OverspentAmount) / RemainingCategories), explain its application.
   2.  **Recommended Savings Rate:**
@@ -70,17 +78,46 @@ const adjustBudgetPrompt = ai.definePrompt({
       *   Maintain a supportive and guiding tone throughout.
 
   Ensure your output is a JSON object strictly adhering to the AdjustBudgetOutputSchema. The explanations and rationales are crucial for helping the user understand and commit to the plan.
-  `, 
+  `,
 });
 
 const adjustBudgetFlow = ai.defineFlow(
   {
     name: 'adjustBudgetFlow',
-    inputSchema: AdjustBudgetInputSchema,
+    inputSchema: AdjustBudgetInputSchema, // Flow still takes original input
     outputSchema: AdjustBudgetOutputSchema,
   },
-  async input => {
-    const {output} = await adjustBudgetPrompt(input);
-    return output!;
+  async (input: AdjustBudgetInput): Promise<AdjustBudgetOutput> => {
+    const spendingString = Object.entries(input.spending)
+      .map(([category, amount]) => `${category}: ${amount}`)
+      .join('; ');
+    const goalsString = Object.entries(input.goals)
+      .map(([goal, amount]) => `${goal}: ${amount}`)
+      .join('; ');
+
+    const promptInput: AdjustBudgetPromptInput = {
+      ...input,
+      spendingString,
+      goalsString,
+    };
+
+    const {output} = await adjustBudgetPrompt(promptInput);
+    
+    if (!output) {
+      // This case should ideally be rare if the LLM and prompt are well-behaved,
+      // as Zod validation on the output schema should catch mismatches.
+      // However, if the LLM returns completely unparsable or no data:
+      console.error('AI failed to generate a budget plan. Output was null or undefined after prompt execution.');
+      return {
+        summary: "I'm sorry, I couldn't generate a complete budget plan at this moment. Please check your inputs or try again later.",
+        adjustedSpending: {}, // Return empty or original spending
+        recommendedSavingsRate: input.savingsRate, // Return original rate
+        investmentAllocation: [],
+      };
+    }
+    // Genkit's 'definePrompt' with an output schema handles Zod validation.
+    // If 'output' is returned, it should conform to AdjustBudgetOutputSchema.
+    return output;
   }
 );
+
