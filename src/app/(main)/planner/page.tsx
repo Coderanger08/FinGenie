@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,8 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { PlusCircle, Trash2, Activity, Sparkles, Loader2, ListChecks, AlertTriangleIcon, TargetIcon, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getBudgetPlanAction } from "./actions";
@@ -94,10 +94,18 @@ export default function BudgetPlannerPage() {
         };
         const result = await getBudgetPlanAction(inputForAI);
         setPlannerOutput(result);
-        toast({
-          title: "Budget Plan Generated",
-          description: "Your personalized budget plan is ready.",
-        });
+        if (result && result.summary && !result.summary.toLowerCase().includes("error") && !result.summary.toLowerCase().includes("sorry")) {
+          toast({
+            title: "Budget Plan Generated",
+            description: "Your personalized budget plan is ready.",
+          });
+        } else {
+           toast({
+            title: "Budget Plan Issue",
+            description: result?.summary || "There was an issue generating the budget plan. Please check the summary.",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error("Failed to generate budget plan", error);
         toast({
@@ -111,7 +119,7 @@ export default function BudgetPlannerPage() {
   
   const optimizedSpendingChartData = plannerOutput?.optimizedSpending
     ? plannerOutput.optimizedSpending.map((item, index) => ({
-        name: item.category, // Map category to name for the chart
+        name: item.category, 
         amount: item.amount,
         fill: `hsl(var(--chart-${(index % 5) + 1}))`
       }))
@@ -123,6 +131,23 @@ export default function BudgetPlannerPage() {
     }
     return String(value);
   };
+
+  const goalAnalysisChartData = useMemo(() => {
+    if (!plannerOutput?.goalAchievementAnalysis || plannerOutput.goalAchievementAnalysis.length === 0) {
+      return [];
+    }
+    return plannerOutput.goalAchievementAnalysis.map(goal => ({
+      name: goal.goalName,
+      current: goal.currentAllocation,
+      recommended: goal.recommendedAllocation,
+    }));
+  }, [plannerOutput?.goalAchievementAnalysis]);
+
+  const goalChartConfig = useMemo(() => ({
+    current: { label: `Current Allocation (${selectedCurrency})`, color: "hsl(var(--chart-1))" },
+    recommended: { label: `Recommended Allocation (${selectedCurrency})`, color: "hsl(var(--chart-2))" },
+  }), [selectedCurrency]);
+
 
    if (!mounted && !isGenerating && !plannerOutput) { 
      return <div className="container mx-auto py-8 animate-pulse">
@@ -262,7 +287,7 @@ export default function BudgetPlannerPage() {
                         <BarChart data={optimizedSpendingChartData} layout="vertical" margin={{ left: 25, right: 25, top:5, bottom:5 }}>
                             <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                             <XAxis type="number" dataKey="amount" tickFormatter={(value) => chartTooltipFormatter(value)} axisLine={false} tickLine={false} fontSize="10px"/>
-                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeDasharray="0" width={100} fontSize="10px"/>
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeDasharray="0" width={100} fontSize="10px" interval={0}/>
                             <ChartTooltip 
                                 cursor={{fill: 'hsl(var(--muted))', radius: 5}} 
                                 content={
@@ -321,27 +346,57 @@ export default function BudgetPlannerPage() {
                         </ul>
                     </div>
                 )}
+                
+                {plannerOutput?.goalAchievementAnalysis && plannerOutput.goalAchievementAnalysis.length > 0 && (
+                <>
+                    <div>
+                        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TargetIcon className="w-5 h-5 text-green-500"/> Goal Allocation Comparison ({selectedCurrency})</h3>
+                        <ChartContainer config={goalChartConfig} className="w-full h-[300px] min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={goalAnalysisChartData} layout="vertical" margin={{ left: Math.max(...goalAnalysisChartData.map(d => d.name.length)) > 15 ? 100 : 80, right: 25, top:5, bottom:20 }}>
+                            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                            <XAxis type="number" tickFormatter={chartTooltipFormatter} axisLine={false} tickLine={false} fontSize="10px"/>
+                            <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} fontSize="10px" interval={0} width={Math.max(...goalAnalysisChartData.map(d => d.name.length)) > 15 ? 120 : 100} />
+                            <ChartTooltip
+                                cursor={{fill: 'hsl(var(--muted))', radius: 5}}
+                                content={
+                                <ChartTooltipContent
+                                    formatter={(value, nameKey) => [chartTooltipFormatter(value), goalChartConfig[nameKey as keyof typeof goalChartConfig]?.label || nameKey as string]}
+                                    labelFormatter={(label) => <span className="font-semibold">{label}</span>} // Goal name as title
+                                    itemStyle={{fontSize: '10px'}}
+                                    
+                                />
+                                }
+                            />
+                            <ChartLegend content={<ChartLegendContent nameKey="name" />} wrapperStyle={{paddingTop: '1rem'}}/>
+                            <Bar dataKey="current" name={goalChartConfig.current.label} fill={goalChartConfig.current.color} radius={[0, 3, 3, 0]} barSize={10} />
+                            <Bar dataKey="recommended" name={goalChartConfig.recommended.label} fill={goalChartConfig.recommended.color} radius={[0, 3, 3, 0]} barSize={10}/>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        </ChartContainer>
+                    </div>
 
-                {plannerOutput.goalAchievementAnalysis && plannerOutput.goalAchievementAnalysis.length > 0 && (
-                  <div>
-                    <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TargetIcon className="w-5 h-5 text-green-500"/> Goal Achievement Analysis</h3>
-                     <Accordion type="single" collapsible className="w-full">
-                      {plannerOutput.goalAchievementAnalysis.map((goal, index) => (
-                        <AccordionItem value={`goal-${index}`} key={index}>
-                          <AccordionTrigger className="text-base hover:no-underline">
-                            {goal.goalName}
-                          </AccordionTrigger>
-                          <AccordionContent className="space-y-2 text-sm">
-                            <p><strong>Current Allocation:</strong> {formatCurrency(goal.currentAllocation, selectedCurrency)}</p>
-                            <p><strong>Recommended Allocation:</strong> {formatCurrency(goal.recommendedAllocation, selectedCurrency)}</p>
-                            {goal.timeToAchieveMonths !== undefined && <p><strong>Est. Time to Achieve:</strong> {goal.timeToAchieveMonths} months</p>}
-                            {goal.notes && <p className="mt-1 text-muted-foreground italic"><strong>Notes:</strong> {goal.notes}</p>}
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </div>
+                    <div>
+                        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TargetIcon className="w-5 h-5 text-green-500"/> Detailed Goal Achievement Analysis</h3>
+                        <Accordion type="single" collapsible className="w-full">
+                        {plannerOutput.goalAchievementAnalysis.map((goal, index) => (
+                            <AccordionItem value={`goal-${index}`} key={index}>
+                            <AccordionTrigger className="text-base hover:no-underline">
+                                {goal.goalName}
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-2 text-sm">
+                                <p><strong>Current Allocation:</strong> {formatCurrency(goal.currentAllocation, selectedCurrency)}</p>
+                                <p><strong>Recommended Allocation:</strong> {formatCurrency(goal.recommendedAllocation, selectedCurrency)}</p>
+                                {goal.timeToAchieveMonths !== undefined && <p><strong>Est. Time to Achieve:</strong> {goal.timeToAchieveMonths} months</p>}
+                                {goal.notes && <p className="mt-1 text-muted-foreground italic"><strong>Notes:</strong> {goal.notes}</p>}
+                            </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                        </Accordion>
+                    </div>
+                 </>
                 )}
+
 
                 {plannerOutput.warningsOrConsiderations && plannerOutput.warningsOrConsiderations.length > 0 && (
                      <div>
