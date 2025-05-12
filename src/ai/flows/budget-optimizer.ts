@@ -140,30 +140,34 @@ Based on this information, generate an optimized budget plan.
 
 Your output MUST be a JSON object adhering to the OptimizeBudgetOutputSchema.
 
-**Key Objectives for Your Plan:**
-1.  **Optimize Spending:**
-    *   Analyze current spending habits. Identify areas for potential reduction or reallocation.
-    *   Provide an 'optimizedSpending' object with suggested amounts for each category. Be realistic and consider common needs.
-    *   Use basic algebraic formulas to guide your adjustments. For example, if a user is overspending, you might calculate the overspend and suggest distributing that reduction across non-essential categories:
-        *   TotalCurrentSpending = sum of currentSpending values
-        *   TargetTotalSpending = income * (1 - (recommendedSavingsRate / 100))
-        *   SpendingAdjustmentNeeded = TotalCurrentSpending - TargetTotalSpending
-        *   If SpendingAdjustmentNeeded > 0 (overspending), distribute this amount as reductions in flexible spending categories in 'optimizedSpending'.
-        *   If SpendingAdjustmentNeeded < 0 (underspending), this surplus can be allocated to savings or goals.
-2.  **Recommend Savings Rate:**
-    *   Suggest a 'recommendedSavingsRate' (0-100%) that aligns with the user's income, goals, and risk tolerance. Aim for a rate that is challenging yet achievable.
-3.  **Provide Investment Suggestions:**
-    *   Generate 'investmentSuggestions' based on the user's risk tolerance and goals.
+**Methodology for your recommendations (for your internal reasoning, do not include these formulas or this methodology description in the output JSON):**
+1.  **Spending Optimization:**
+    *   Analyze current spending habits to identify areas for reduction or reallocation.
+    *   In your internal calculations, you can determine if the user is overspending. For example, you might:
+        *   Calculate TotalCurrentSpending by summing all 'currentSpending' values.
+        *   Estimate a TargetTotalSpending based on 'income' and the 'recommendedSavingsRate' (which you will also determine).
+        *   Calculate SpendingAdjustmentNeeded = TotalCurrentSpending - TargetTotalSpending.
+        *   If SpendingAdjustmentNeeded is positive (indicating overspending), your 'optimizedSpending' suggestions in the JSON output should distribute this reduction across flexible spending categories.
+        *   If SpendingAdjustmentNeeded is negative (indicating underspending), this surplus can be allocated to savings or goals in your recommendations.
+    *   The final 'optimizedSpending' field in your JSON output should reflect these adjustments. Ensure 'optimizedSpending' is a record of category names (string) to suggested amounts (number).
+
+2.  **Savings Rate Recommendation:**
+    *   Suggest a 'recommendedSavingsRate' (0-100%) that aligns with the user's income, goals, and risk tolerance. This should be a single number.
+
+3.  **Investment Suggestions:**
+    *   Generate 'investmentSuggestions' based on the user's risk tolerance and financial goals.
     *   Suggest 2-4 asset classes (e.g., "ETFs (Broad Market)", "High-Yield Savings Account", "Stocks (Growth-focused)", "Bonds (Government)").
-    *   For each, provide a percentage allocation and a brief rationale. The sum of percentages should ideally be 100% of the portion of savings designated for investment.
-4.  **Outline Actionable Steps:**
-    *   List 3-5 clear, 'actionableSteps' the user can take to implement the plan. These should be practical.
+    *   For each, provide a 'assetClass' (string), 'percentage' (number 0-100) allocation, and an optional 'rationale' (string). The sum of percentages should ideally be 100% of the portion of savings designated for investment. This should be an array of objects.
+
+4.  **Actionable Steps:**
+    *   List 3-5 clear, 'actionableSteps' the user can take. This should be an array of strings.
+
 5.  **Analyze Goal Achievement:**
     *   For each goal in 'financialGoals', provide a 'goalAchievementAnalysis'.
-    *   Include 'goalName', 'currentAllocation' (estimate this based on current spending and savings if possible, or state if not directly inferable), 'recommendedAllocation' (how much from their new budget should go to this goal), and 'timeToAchieveMonths' (estimate if possible with the recommended allocation).
-    *   Add 'notes' for specific advice related to achieving that goal.
+    *   This should be an array of objects, each with 'goalName' (string), 'currentAllocation' (number, estimate this based on current spending and savings if possible, or state if not directly inferable), 'recommendedAllocation' (number, how much from their new budget should go to this goal), 'timeToAchieveMonths' (optional number), and 'notes' (optional string).
+
 6.  **Add Warnings/Considerations:**
-    *   Include any 'warningsOrConsiderations' if the plan involves significant changes or risks.
+    *   Include any 'warningsOrConsiderations' as an array of strings, if the plan involves significant changes or risks.
 
 **General Guidelines:**
 *   **Personalization:** Tailor all recommendations directly to the user's provided data.
@@ -172,8 +176,9 @@ Your output MUST be a JSON object adhering to the OptimizeBudgetOutputSchema.
 *   **Mathematical Soundness:** Ensure your recommendations are mathematically plausible (e.g., total optimized spending + savings should not exceed income).
 *   **Prioritization:** If goals conflict with available funds, suggest prioritization or phased approaches.
 
-Focus on providing a robust, helpful, and well-structured JSON output.
-Do not use markdown like '*' or '-' for lists within string fields of the JSON. Use arrays of strings for lists like 'actionableSteps'.
+Focus on providing a robust, helpful, and well-structured JSON output that strictly matches the OptimizeBudgetOutputSchema.
+Do not use markdown like '*' or '-' for lists within string fields of the JSON; use arrays of strings for lists like 'actionableSteps' and 'warningsOrConsiderations'.
+Do not include any of the calculation descriptions, formulas, or the "Methodology for your recommendations" section in your final JSON output. The JSON output should start directly with the fields defined in OptimizeBudgetOutputSchema (e.g. "summary": "...", "optimizedSpending": {...}, etc.).
 `,
 });
 
@@ -188,6 +193,7 @@ const optimizeBudgetFlow = ai.defineFlow(
     if (!output) {
       // Fallback or error handling if AI output is critically flawed or missing
       // This should align with the OptimizeBudgetOutputSchema structure
+      console.error("OptimizeBudgetFlow: AI output was null or undefined. Input was:", JSON.stringify(input, null, 2));
       return {
         summary: "I'm sorry, I encountered an issue generating a full budget plan at this moment. Please check your inputs or try again. As a general tip, reviewing your non-essential spending is often a good first step to optimize your budget.",
         optimizedSpending: input.currentSpending, // Return original spending
