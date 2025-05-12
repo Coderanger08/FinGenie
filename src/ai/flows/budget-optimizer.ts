@@ -1,4 +1,3 @@
-
 // 'use server';
 'use server';
 /**
@@ -61,9 +60,14 @@ const OptimizeBudgetOutputSchema = z.object({
       'A concise summary of the budget optimization recommendations and overall financial advice.'
     ),
   optimizedSpending: z
-    .record(z.number())
+    .array(
+      z.object({
+        category: z.string().describe('The name of the spending category.'),
+        amount: z.number().nonnegative().describe('The suggested non-negative spending amount for this category.'),
+      })
+    )
     .describe(
-      'An object representing the AI-recommended optimized monthly spending plan, with categories as keys and suggested amounts as values.'
+      'An array of objects representing the AI-recommended optimized monthly spending plan. Each object should have a "category" (string) and "amount" (number, non-negative). Example: [{"category": "Groceries", "amount": 250}, {"category": "Utilities", "amount": 120}]'
     ),
   recommendedSavingsRate: z
     .number()
@@ -149,7 +153,7 @@ Your output MUST be a JSON object adhering to the OptimizeBudgetOutputSchema.
         *   Calculate SpendingAdjustmentNeeded = TotalCurrentSpending - TargetTotalSpending.
         *   If SpendingAdjustmentNeeded is positive (indicating overspending), your 'optimizedSpending' suggestions in the JSON output should distribute this reduction across flexible spending categories.
         *   If SpendingAdjustmentNeeded is negative (indicating underspending), this surplus can be allocated to savings or goals in your recommendations.
-    *   The final 'optimizedSpending' field in your JSON output should reflect these adjustments. Ensure 'optimizedSpending' is a record of category names (string) to suggested amounts (number).
+    *   The final 'optimizedSpending' field in your JSON output should reflect these adjustments. Ensure 'optimizedSpending' is an array of objects, where each object has a "category" (string) and an "amount" (number, non-negative). For example: [{"category": "Groceries", "amount": 250}, {"category": "Utilities", "amount": 120}]
 
 2.  **Savings Rate Recommendation:**
     *   Suggest a 'recommendedSavingsRate' (0-100%) that aligns with the user's income, goals, and risk tolerance. This should be a single number.
@@ -175,10 +179,11 @@ Your output MUST be a JSON object adhering to the OptimizeBudgetOutputSchema.
 *   **Positive Tone:** Be encouraging and supportive.
 *   **Mathematical Soundness:** Ensure your recommendations are mathematically plausible (e.g., total optimized spending + savings should not exceed income).
 *   **Prioritization:** If goals conflict with available funds, suggest prioritization or phased approaches.
+*   **Non-Negative Spending:** All amounts in 'optimizedSpending' must be non-negative.
 
 Focus on providing a robust, helpful, and well-structured JSON output that strictly matches the OptimizeBudgetOutputSchema.
 Do not use markdown like '*' or '-' for lists within string fields of the JSON; use arrays of strings for lists like 'actionableSteps' and 'warningsOrConsiderations'.
-Do not include any of the calculation descriptions, formulas, or the "Methodology for your recommendations" section in your final JSON output. The JSON output should start directly with the fields defined in OptimizeBudgetOutputSchema (e.g. "summary": "...", "optimizedSpending": {...}, etc.).
+Do not include any of the calculation descriptions, formulas, or the "Methodology for your recommendations" section in your final JSON output. The JSON output should start directly with the fields defined in OptimizeBudgetOutputSchema (e.g. "summary": "...", "optimizedSpending": [...], etc.).
 `,
 });
 
@@ -190,13 +195,18 @@ const optimizeBudgetFlow = ai.defineFlow(
   },
   async (input: OptimizeBudgetInput) => {
     const {output} = await optimizeBudgetPrompt(input);
-    if (!output) {
+    if (!output || !output.summary || !Array.isArray(output.optimizedSpending)) { // Added check for optimizedSpending being an array
       // Fallback or error handling if AI output is critically flawed or missing
       // This should align with the OptimizeBudgetOutputSchema structure
-      console.error("OptimizeBudgetFlow: AI output was null or undefined. Input was:", JSON.stringify(input, null, 2));
+      console.error("OptimizeBudgetFlow: AI output was null, undefined, or malformed. Input was:", JSON.stringify(input, null, 2), "Output was:", JSON.stringify(output, null, 2));
+      
+      const fallbackOptimizedSpending = input.currentSpending
+        ? Object.entries(input.currentSpending).map(([category, amount]) => ({ category, amount: Math.max(0,amount) })) // Ensure non-negative
+        : [];
+
       return {
         summary: "I'm sorry, I encountered an issue generating a full budget plan at this moment. Please check your inputs or try again. As a general tip, reviewing your non-essential spending is often a good first step to optimize your budget.",
-        optimizedSpending: input.currentSpending, // Return original spending
+        optimizedSpending: fallbackOptimizedSpending,
         recommendedSavingsRate: input.currentSavingsRate, // Return original savings rate
         investmentSuggestions: [],
         actionableSteps: ["Review your current spending categories for potential savings.", "Ensure your financial goals are specific and measurable."],
@@ -209,6 +219,12 @@ const optimizeBudgetFlow = ai.defineFlow(
         })) : []
       };
     }
+     // Ensure all optimized spending amounts are non-negative
+    output.optimizedSpending = output.optimizedSpending.map(item => ({
+      ...item,
+      amount: Math.max(0, item.amount) 
+    }));
+    
     return output;
   }
 );

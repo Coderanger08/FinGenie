@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
@@ -110,12 +109,12 @@ export default function BudgetPlannerPage() {
     });
   };
   
-  const optimizedSpendingChartData = plannerOutput?.optimizedSpending 
-    ? Object.entries(plannerOutput.optimizedSpending).map(([name, value], index) => ({ 
-        name, 
-        amount: value,
-        fill: `hsl(var(--chart-${(index % 5) + 1}))` 
-      })) 
+  const optimizedSpendingChartData = plannerOutput?.optimizedSpending
+    ? plannerOutput.optimizedSpending.map((item, index) => ({
+        name: item.category, // Map category to name for the chart
+        amount: item.amount,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+      }))
     : [];
   
   const chartTooltipFormatter = (value: unknown) => {
@@ -283,7 +282,7 @@ export default function BudgetPlannerPage() {
                       </ResponsiveContainer>
                     </ChartContainer>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No spending adjustments provided by AI.</p>
+                        <p className="text-sm text-muted-foreground">No spending adjustments provided by AI or an error occurred.</p>
                     )}
                 </div>
                 <div>
@@ -308,7 +307,7 @@ export default function BudgetPlannerPage() {
                       </TableBody>
                     </Table>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No specific investment allocation provided by AI.</p>
+                    <p className="text-sm text-muted-foreground">No specific investment allocation provided by AI or an error occurred.</p>
                   )}
                 </div>
 
