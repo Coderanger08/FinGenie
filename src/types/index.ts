@@ -37,10 +37,3 @@ export interface ChatMessage {
   timestamp: number;
   chart?: ChartConfig; // Optional chart data
 }
-
-export interface PlannerOutputData {
-  adjustedSpending: Record<string, number>;
-  recommendedSavingsRate: number;
-  investmentAllocation: Array<{ assetClass: string; percentage: number }>;
-  summary: string;
-}

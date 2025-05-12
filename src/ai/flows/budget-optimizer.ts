@@ -124,15 +124,11 @@ User's Financial Information:
 - Monthly Income: {{income}}
 - Current Monthly Spending:
 {{#each currentSpending}}
-  - {{#each this}}
-    {{@key}}: {{@value}}
-  {{/each}}
+  - {{@key}}: {{this}}
 {{/each}}
 - Financial Goals:
 {{#each financialGoals}}
-  - {{#each this}}
-    {{@key}}: (Target: {{@value}})
-  {{/each}}
+  - {{@key}}: (Target: {{this}})
 {{/each}}
 - Current Savings Rate: {{currentSavingsRate}}%
 - Risk Tolerance: {{riskTolerance}}

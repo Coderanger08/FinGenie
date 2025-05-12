@@ -12,15 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PlusCircle, Trash2, Activity, Sparkles, Loader2 } from "lucide-react";
+import { PlusCircle, Trash2, Activity, Sparkles, Loader2, ListChecks, AlertTriangleIcon, TargetIcon, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { PlannerOutputData } from "@/types";
 import { getBudgetPlanAction } from "./actions";
-import type { AdjustBudgetInput } from "@/ai/flows/budget-adjustment-planner";
+import type { OptimizeBudgetInput, OptimizeBudgetOutput } from "@/ai/flows/budget-optimizer";
 import { useCurrency } from "@/contexts/currency-context";
 import { formatCurrency } from "@/lib/currency-utils";
+import { Badge } from "@/components/ui/badge";
 
 const spendingItemSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -34,8 +35,8 @@ const goalItemSchema = z.object({
 
 const plannerSchema = z.object({
   monthlyIncome: z.coerce.number().positive("Monthly income must be positive"),
-  spending: z.array(spendingItemSchema).min(1, "At least one spending category is required"),
-  goals: z.array(goalItemSchema).min(1, "At least one financial goal is required"),
+  currentSpending: z.array(spendingItemSchema).min(1, "At least one spending category is required"),
+  financialGoals: z.array(goalItemSchema).min(1, "At least one financial goal is required"),
   currentSavingsRate: z.coerce.number().min(0).max(100, "Savings rate must be between 0 and 100"),
   riskTolerance: z.enum(["low", "medium", "high"], { required_error: "Risk tolerance is required" }),
   lifestyleEventsNotes: z.string().optional(),
@@ -50,7 +51,7 @@ const chartConfigBase = {
 
 
 export default function BudgetPlannerPage() {
-  const [plannerOutput, setPlannerOutput] = useState<PlannerOutputData | null>(null);
+  const [plannerOutput, setPlannerOutput] = useState<OptimizeBudgetOutput | null>(null);
   const [isGenerating, startGenerationTransition] = useTransition();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
@@ -63,8 +64,8 @@ export default function BudgetPlannerPage() {
     resolver: zodResolver(plannerSchema),
     defaultValues: {
       monthlyIncome: 5000,
-      spending: [{ category: "Rent", amount: 1500 }, { category: "Groceries", amount: 400 }, {category: "Entertainment", amount: 200}],
-      goals: [{ goal: "Vacation Fund", targetAmount: 2000 }, {goal: "New Laptop", targetAmount: 1200}],
+      currentSpending: [{ category: "Rent", amount: 1500 }, { category: "Groceries", amount: 400 }, {category: "Entertainment", amount: 200}],
+      financialGoals: [{ goal: "Vacation Fund", targetAmount: 2000 }, {goal: "New Laptop", targetAmount: 1200}],
       currentSavingsRate: 10,
       riskTolerance: "medium",
       lifestyleEventsNotes: "",
@@ -73,24 +74,24 @@ export default function BudgetPlannerPage() {
 
   const { fields: spendingFields, append: appendSpending, remove: removeSpending } = useFieldArray({
     control: form.control,
-    name: "spending",
+    name: "currentSpending",
   });
 
   const { fields: goalFields, append: appendGoal, remove: removeGoal } = useFieldArray({
     control: form.control,
-    name: "goals",
+    name: "financialGoals",
   });
 
   const onSubmit = (data: PlannerFormData) => {
     startGenerationTransition(async () => {
       try {
-        const inputForAI: AdjustBudgetInput = {
+        const inputForAI: OptimizeBudgetInput = {
           income: data.monthlyIncome,
-          spending: data.spending.reduce((obj, item) => { obj[item.category] = item.amount; return obj; }, {} as Record<string, number>),
-          goals: data.goals.reduce((obj, item) => { obj[item.goal] = item.targetAmount; return obj; }, {} as Record<string, number>),
-          savingsRate: data.currentSavingsRate,
+          currentSpending: data.currentSpending.reduce((obj, item) => { obj[item.category] = item.amount; return obj; }, {} as Record<string, number>),
+          financialGoals: data.financialGoals.reduce((obj, item) => { obj[item.goal] = item.targetAmount; return obj; }, {} as Record<string, number>),
+          currentSavingsRate: data.currentSavingsRate,
           riskTolerance: data.riskTolerance,
-          lifestyleEventsNotes: data.lifestyleEventsNotes || "No specific lifestyle events noted.",
+          lifestyleEventsNotes: data.lifestyleEventsNotes || undefined,
         };
         const result = await getBudgetPlanAction(inputForAI);
         setPlannerOutput(result);
@@ -109,8 +110,8 @@ export default function BudgetPlannerPage() {
     });
   };
   
-  const adjustedSpendingChartData = plannerOutput?.adjustedSpending 
-    ? Object.entries(plannerOutput.adjustedSpending).map(([name, value], index) => ({ 
+  const optimizedSpendingChartData = plannerOutput?.optimizedSpending 
+    ? Object.entries(plannerOutput.optimizedSpending).map(([name, value], index) => ({ 
         name, 
         amount: value,
         fill: `hsl(var(--chart-${(index % 5) + 1}))` 
@@ -158,13 +159,13 @@ export default function BudgetPlannerPage() {
                 <Label>Monthly Spending ({selectedCurrency})</Label>
                 {spendingFields.map((field, index) => (
                   <div key={field.id} className="flex gap-2 items-end mt-2">
-                    <Input {...form.register(`spending.${index}.category`)} placeholder="Category" className="flex-1"/>
-                    <Input type="number" {...form.register(`spending.${index}.amount`)} placeholder="Amount" className="w-28"/>
+                    <Input {...form.register(`currentSpending.${index}.category`)} placeholder="Category" className="flex-1"/>
+                    <Input type="number" {...form.register(`currentSpending.${index}.amount`)} placeholder="Amount" className="w-28"/>
                     <Button type="button" variant="outline" size="icon" onClick={() => removeSpending(index)} className="hover:bg-destructive/10 hover:border-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                 {form.formState.errors.spending?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.spending.root.message}</p>}
-                {form.formState.errors.spending?.map((err, idx) => (
+                 {form.formState.errors.currentSpending?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.currentSpending.root.message}</p>}
+                {form.formState.errors.currentSpending?.map((err, idx) => (
                     (err?.category || err?.amount) && <p key={idx} className="text-sm text-destructive mt-1">{err?.category?.message || err?.amount?.message}</p>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendSpending({ category: "", amount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Spending</Button>
@@ -174,13 +175,13 @@ export default function BudgetPlannerPage() {
                 <Label>Financial Goals ({selectedCurrency})</Label>
                 {goalFields.map((field, index) => (
                   <div key={field.id} className="flex gap-2 items-end mt-2">
-                    <Input {...form.register(`goals.${index}.goal`)} placeholder="Goal" className="flex-1"/>
-                    <Input type="number" {...form.register(`goals.${index}.targetAmount`)} placeholder="Target" className="w-36"/>
+                    <Input {...form.register(`financialGoals.${index}.goal`)} placeholder="Goal" className="flex-1"/>
+                    <Input type="number" {...form.register(`financialGoals.${index}.targetAmount`)} placeholder="Target" className="w-36"/>
                     <Button type="button" variant="outline" size="icon" onClick={() => removeGoal(index)} className="hover:bg-destructive/10 hover:border-destructive hover:text-destructive"><Trash2 className="h-4 w-4"/></Button>
                   </div>
                 ))}
-                {form.formState.errors.goals?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.goals.root.message}</p>}
-                 {form.formState.errors.goals?.map((err, idx) => (
+                {form.formState.errors.financialGoals?.root && <p className="text-sm text-destructive mt-1">{form.formState.errors.financialGoals.root.message}</p>}
+                 {form.formState.errors.financialGoals?.map((err, idx) => (
                     (err?.goal || err?.targetAmount) && <p key={idx} className="text-sm text-destructive mt-1">{err?.goal?.message || err?.targetAmount?.message}</p>
                 ))}
                 <Button type="button" variant="outline" size="sm" onClick={() => appendGoal({ goal: "", targetAmount: 0 })} className="mt-2"><PlusCircle className="mr-2 h-4 w-4"/>Add Goal</Button>
@@ -247,19 +248,19 @@ export default function BudgetPlannerPage() {
             {plannerOutput && !isGenerating && (
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Summary & Advice</h3>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{plannerOutput.summary}</p>
+                  <h3 className="text-xl font-semibold mb-2 flex items-center gap-2"><Lightbulb className="w-5 h-5 text-yellow-500"/>Summary & Advice</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed bg-muted p-4 rounded-lg">{plannerOutput.summary}</p>
                 </div>
                 <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 rounded-lg shadow">
                   <h3 className="text-lg font-semibold mb-1">Recommended Savings Rate</h3>
-                  <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{plannerOutput.recommendedSavingsRate}%</p>
+                  <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">{plannerOutput.recommendedSavingsRate.toFixed(1)}%</p>
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Adjusted Spending Plan ({selectedCurrency})</h3>
-                   {adjustedSpendingChartData.length > 0 ? (
+                   {optimizedSpendingChartData.length > 0 ? (
                     <ChartContainer config={chartConfigBase} className="w-full h-[350px] min-h-[250px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={adjustedSpendingChartData} layout="vertical" margin={{ left: 25, right: 25, top:5, bottom:5 }}>
+                        <BarChart data={optimizedSpendingChartData} layout="vertical" margin={{ left: 25, right: 25, top:5, bottom:5 }}>
                             <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                             <XAxis type="number" dataKey="amount" tickFormatter={(value) => chartTooltipFormatter(value)} axisLine={false} tickLine={false} fontSize="10px"/>
                             <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} strokeDasharray="0" width={100} fontSize="10px"/>
@@ -267,14 +268,14 @@ export default function BudgetPlannerPage() {
                                 cursor={{fill: 'hsl(var(--muted))', radius: 5}} 
                                 content={
                                     <ChartTooltipContent 
-                                        formatter={(value, name) => [chartTooltipFormatter(value), name]} 
+                                        formatter={(value, name) => [chartTooltipFormatter(value), name as string]} 
                                         itemStyle={{fontSize: '10px'}}
                                         labelStyle={{fontSize: '10px', fontWeight: 'bold'}}
                                     />
                                 } 
                             />
                             <Bar dataKey="amount" radius={[0, 5, 5, 0]} barSize={15}>
-                                {adjustedSpendingChartData.map((entry) => (
+                                {optimizedSpendingChartData.map((entry) => (
                                     <Cell key={`cell-${entry.name}`} fill={entry.fill} className="focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1"/>
                                 ))}
                             </Bar>
@@ -287,19 +288,21 @@ export default function BudgetPlannerPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Investment Allocation</h3>
-                  {plannerOutput.investmentAllocation.length > 0 ? (
+                  {plannerOutput.investmentSuggestions && plannerOutput.investmentSuggestions.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Asset Class</TableHead>
-                          <TableHead className="text-right">Percentage</TableHead>
+                          <TableHead>Percentage</TableHead>
+                          <TableHead>Rationale</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {plannerOutput.investmentAllocation.map((item, index) => (
+                        {plannerOutput.investmentSuggestions.map((item, index) => (
                           <TableRow key={index} className="hover:bg-muted/50">
                             <TableCell className="font-medium">{item.assetClass}</TableCell>
-                            <TableCell className="text-right font-medium">{item.percentage}%</TableCell>
+                            <TableCell className="font-medium">{item.percentage.toFixed(1)}%</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{item.rationale || "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -308,6 +311,50 @@ export default function BudgetPlannerPage() {
                     <p className="text-sm text-muted-foreground">No specific investment allocation provided by AI.</p>
                   )}
                 </div>
+
+                {plannerOutput.actionableSteps && plannerOutput.actionableSteps.length > 0 && (
+                     <div>
+                        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ListChecks className="w-5 h-5 text-blue-500"/> Actionable Steps</h3>
+                        <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                            {plannerOutput.actionableSteps.map((step, index) => (
+                                <li key={index}>{step}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {plannerOutput.goalAchievementAnalysis && plannerOutput.goalAchievementAnalysis.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TargetIcon className="w-5 h-5 text-green-500"/> Goal Achievement Analysis</h3>
+                     <Accordion type="single" collapsible className="w-full">
+                      {plannerOutput.goalAchievementAnalysis.map((goal, index) => (
+                        <AccordionItem value={`goal-${index}`} key={index}>
+                          <AccordionTrigger className="text-base hover:no-underline">
+                            {goal.goalName}
+                          </AccordionTrigger>
+                          <AccordionContent className="space-y-2 text-sm">
+                            <p><strong>Current Allocation:</strong> {formatCurrency(goal.currentAllocation, selectedCurrency)}</p>
+                            <p><strong>Recommended Allocation:</strong> {formatCurrency(goal.recommendedAllocation, selectedCurrency)}</p>
+                            {goal.timeToAchieveMonths !== undefined && <p><strong>Est. Time to Achieve:</strong> {goal.timeToAchieveMonths} months</p>}
+                            {goal.notes && <p className="mt-1 text-muted-foreground italic"><strong>Notes:</strong> {goal.notes}</p>}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </div>
+                )}
+
+                {plannerOutput.warningsOrConsiderations && plannerOutput.warningsOrConsiderations.length > 0 && (
+                     <div>
+                        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><AlertTriangleIcon className="w-5 h-5 text-orange-500"/> Warnings & Considerations</h3>
+                        <ul className="list-disc pl-5 space-y-2 text-sm text-muted-foreground">
+                            {plannerOutput.warningsOrConsiderations.map((warning, index) => (
+                                <li key={index}>{warning}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
               </div>
             )}
           </CardContent>
