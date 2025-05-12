@@ -1,3 +1,4 @@
+
 // 'use server';
 'use server';
 /**
@@ -148,11 +149,11 @@ Your output MUST be a JSON object adhering to the OptimizeBudgetOutputSchema.
     *   Analyze current spending habits. Identify areas for potential reduction or reallocation.
     *   Provide an 'optimizedSpending' object with suggested amounts for each category. Be realistic and consider common needs.
     *   Use basic algebraic formulas to guide your adjustments. For example, if a user is overspending, you might calculate the overspend and suggest distributing that reduction across non-essential categories:
-        *   `TotalCurrentSpending = sum(currentSpending values)`
-        *   `TargetTotalSpending = income * (1 - (recommendedSavingsRate / 100))`
-        *   `SpendingAdjustmentNeeded = TotalCurrentSpending - TargetTotalSpending`
-        *   If `SpendingAdjustmentNeeded > 0` (overspending), distribute this amount as reductions in flexible spending categories in 'optimizedSpending'.
-        *   If `SpendingAdjustmentNeeded < 0` (underspending), this surplus can be allocated to savings or goals.
+        *   TotalCurrentSpending = sum(currentSpending values)
+        *   TargetTotalSpending = income * (1 - (recommendedSavingsRate / 100))
+        *   SpendingAdjustmentNeeded = TotalCurrentSpending - TargetTotalSpending
+        *   If SpendingAdjustmentNeeded > 0 (overspending), distribute this amount as reductions in flexible spending categories in 'optimizedSpending'.
+        *   If SpendingAdjustmentNeeded < 0 (underspending), this surplus can be allocated to savings or goals.
 2.  **Recommend Savings Rate:**
     *   Suggest a 'recommendedSavingsRate' (0-100%) that aligns with the user's income, goals, and risk tolerance. Aim for a rate that is challenging yet achievable.
 3.  **Provide Investment Suggestions:**
